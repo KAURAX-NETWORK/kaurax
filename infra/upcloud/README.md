@@ -3,8 +3,14 @@
 KAURAX's persistent infrastructure runs on a single Linux VPS. This directory holds the
 provisioning notes; the scripts live in [`../scripts/`](../scripts/).
 
-> **No server exists.** These are the requirements and the procedure, not a record of a
+> **No server exists yet.** These are the requirements and the procedure, not a record of a
 > deployment.
+>
+> Provisioning is scripted — `infra/scripts/ops/provision-upcloud.sh` creates the server,
+> locks the firewall to 22/80/443 and prints the DNS records to add. It is blocked on one
+> thing only: UpCloud restricts API access by source IP, and this machine's address is not
+> on the allow-list. Add it under **Account → API** in the UpCloud control panel, then run
+> the script.
 
 ## Server
 

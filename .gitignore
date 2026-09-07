@@ -31,3 +31,5 @@ blockchain/contracts/broadcast/
 blockchain/contracts/lib/
 
 .DS_Store
+.vercel
+.env*

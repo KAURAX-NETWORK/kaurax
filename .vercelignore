@@ -1,0 +1,27 @@
+# What Vercel does NOT need.
+#
+# Careful: services/, tests/ and blockchain/l3 are pnpm workspace members. Excluding them
+# breaks `pnpm install` at the root, because the lockfile expects their package.json to be
+# there. They stay — they are only source, and they are small.
+#
+# What actually made the upload 54 MB was the git history, the Foundry artifacts and the
+# devnet state. Those go.
+
+.git
+.github
+.devnet
+.turbo
+docs
+infra
+blockchain/contracts/lib
+blockchain/contracts/out
+blockchain/contracts/cache
+blockchain/contracts/broadcast
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+*.log
+*.tar.zst
+coverage
