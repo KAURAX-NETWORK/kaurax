@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {notFound} from "next/navigation";
 import {listDocs, readDoc} from "@/lib/docs";
 import {Markdown} from "@/lib/markdown";
@@ -25,9 +26,9 @@ export default async function DocPage({params}: {params: Promise<{slug: string[]
       </article>
 
       <div className="row-gap" style={{marginTop: 22}}>
-        {prev ? <a href={`/${prev.slug}`}>← {prev.title}</a> : null}
+        {prev ? <Link href={`/${prev.slug}`}>← {prev.title}</Link> : null}
         <span className="right" />
-        {next ? <a href={`/${next.slug}`}>{next.title} →</a> : null}
+        {next ? <Link href={`/${next.slug}`}>{next.title} →</Link> : null}
       </div>
     </div>
   );

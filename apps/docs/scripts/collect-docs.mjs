@@ -49,7 +49,19 @@ for (const name of ROOT_DOCS) {
   const p = join(root, name);
   if (!existsSync(p)) continue;
   const markdown = readFileSync(p, "utf8");
-  entries.push({slug: name.replace(/\.md$/, "").toLowerCase(), title: titleOf(markdown, name), group: "start", markdown});
+  // Repository-root files are prefixed. Three of them — README, ARCHITECTURE, SECURITY —
+  // share a name with a file in docs/, and those are different documents. The docs/
+  // directory is the primary documentation, so it keeps the bare name and these give way.
+  //
+  // The prefix is a plain word, not a path segment: a slug containing "/" has to be
+  // reassembled from a catch-all route and then collides with the app's own basePath,
+  // which is exactly the bug this replaced.
+  entries.push({
+    slug: `repo-${name.replace(/\.md$/, "").toLowerCase().replace(/_/g, "-")}`,
+    title: titleOf(markdown, name),
+    group: "start",
+    markdown,
+  });
 }
 
 const docsDir = join(root, "docs");
@@ -58,8 +70,13 @@ if (existsSync(docsDir)) {
   const ordered = [...PREFERRED.filter((f) => present.includes(f)), ...present.filter((f) => !PREFERRED.includes(f))];
   for (const name of ordered) {
     const markdown = readFileSync(join(docsDir, name), "utf8");
+    // Bare name, no prefix. basePath already puts every one of these under /docs, and
+    // adding it to the slug as well produced /docs/docs/<name> — or, with a raw anchor,
+    // a link to /docs/<name> that the app then resolved as slug "<name>" and could not
+    // find. Underscores are left alone: DATA_AVAILABILITY.md and data-availability.md are
+    // separate files, and normalising would collapse them onto each other.
     entries.push({
-      slug: `docs/${name.replace(/\.md$/, "").toLowerCase()}`,
+      slug: name.replace(/\.md$/, "").toLowerCase(),
       title: titleOf(markdown, name),
       group: "protocol",
       markdown,

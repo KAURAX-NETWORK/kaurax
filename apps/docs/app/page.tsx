@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {listDocs} from "@/lib/docs";
 import {Banner} from "@kaurax/ui";
 
@@ -28,7 +29,7 @@ export default function DocsIndex() {
           <ul className="md-list">
             {root.map((d) => (
               <li key={d.slug}>
-                <a href={`/${d.slug}`}>{d.title}</a>
+                <Link href={`/${d.slug}`}>{d.title}</Link>
               </li>
             ))}
           </ul>
@@ -39,7 +40,7 @@ export default function DocsIndex() {
           <ul className="md-list" style={{columns: 2, columnGap: 24}}>
             {protocolDocs.map((d) => (
               <li key={d.slug}>
-                <a href={`/${d.slug}`}>{d.title}</a>
+                <Link href={`/${d.slug}`}>{d.title}</Link>
               </li>
             ))}
           </ul>
