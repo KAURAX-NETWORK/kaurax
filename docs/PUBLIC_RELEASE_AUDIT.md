@@ -118,7 +118,7 @@ The blockers are to *mainnet* and are unchanged: no verifier, no audit, guardian
 
 1. Rotate the xKiro API key — hygiene, not a blocker
 2. Decide how to present the RPC's lack of TLS, or upgrade the host account
-3. Confirm `security@kaurax.network` receives mail, or change it
+3. ~~Confirm the security contact receives mail~~ — done; `SECURITY.md` now lists a mailbox the maintainer controls
 4. Review this audit independently — it was written by the author of the code
 
 ## Final Recommendation
@@ -136,7 +136,7 @@ What would make it stronger is not more work by me. It is somebody else reading 
 | Git history secrets | **PASS** |
 | .gitignore | **PASS** |
 | README | **PASS** |
-| Security policy | **PASS** |
+| Security policy | **PASS** — contact verified |
 | Architecture docs | **PASS** |
 | CI | **PASS** |
 | Solidity tests | **PASS** (270) |

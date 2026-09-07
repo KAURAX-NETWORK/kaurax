@@ -2,9 +2,10 @@
 
 ## Reporting a vulnerability
 
-**Email:** security@kaurax.network — or, if that bounces, open a GitHub **Security Advisory**
-(Security → Advisories → Report a vulnerability) on this repository. Advisories are private
-until published.
+**Email:** softnextgr@gmail.com — a monitored mailbox, not an alias that may or may not
+forward. You can also open a GitHub **Security Advisory** (Security → Advisories → Report a
+vulnerability) on this repository; advisories stay private until published, so use whichever
+you prefer.
 
 **Please do not open a public issue for a security bug.**
 

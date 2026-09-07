@@ -72,8 +72,10 @@ report.
 2. **Decide on the public RPC.** It currently serves plain HTTP on a non-standard port
    because the host blocks 80/443 on trial accounts. Either upgrade the account or state
    the limitation on the site.
-3. **Confirm `security@kaurax.network` receives mail**, or change the address in
-   `SECURITY.md`. This audit could not verify it.
+3. ~~Confirm the security contact receives mail.~~ **Done** — `SECURITY.md` now lists
+   `softnextgr@gmail.com`, a mailbox the maintainer controls, rather than an alias this
+   audit could not verify. Note that a plain address in a public repository will be
+   scraped; a forwarding alias is worth setting up later, once one can be verified.
 4. **Review this checklist yourself.** It was produced by the same party that wrote the code.
 
 ---
