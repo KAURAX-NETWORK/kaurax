@@ -142,7 +142,9 @@ contract DisputeGameTest is Test {
     function test_challengeRequiresExactBond() public {
         uint256 idx = _propose();
         vm.prank(challenger);
-        vm.expectRevert(abi.encodeWithSelector(KauraxDisputeGame.WrongBond.selector, CHALLENGER_BOND, 0.5 ether));
+        vm.expectRevert(
+            abi.encodeWithSelector(KauraxDisputeGame.WrongBond.selector, CHALLENGER_BOND, 0.5 ether)
+        );
         game.challenge{value: 0.5 ether}(idx);
     }
 
@@ -191,7 +193,9 @@ contract DisputeGameTest is Test {
         uint256 next = oracle.nextBlockNumber();
         vm.warp(block.timestamp + SUBMISSION_INTERVAL * L3_BLOCK_TIME + 1);
         vm.prank(proposer);
-        vm.expectRevert(abi.encodeWithSelector(KauraxL2OutputOracle.WrongProposerBond.selector, PROPOSER_BOND, 0));
+        vm.expectRevert(
+            abi.encodeWithSelector(KauraxL2OutputOracle.WrongProposerBond.selector, PROPOSER_BOND, 0)
+        );
         oracle.proposeL2Output(keccak256("x"), next, bytes32(0), 0);
     }
 

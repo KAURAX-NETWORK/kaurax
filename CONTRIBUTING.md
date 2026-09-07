@@ -114,7 +114,7 @@ Do not open a public issue for a vulnerability. See `SECURITY.md`.
 - `docs/ARCHITECTURE_AUDIT.md` — what exists, what is trusted, what is missing
 - `docs/DISPUTE_GAME.md` — the most interesting contract
 - `docs/FAULT_PROOF_ROADMAP.md` — the largest open problem
-- `MAINNET_READINESS.md` — an honest scorecard, currently 47/100
+- `MAINNET_READINESS.md` — an honest scorecard, currently 52/100
 
 Good first issues tend to be in the frontends, the CLI, or test coverage. The settlement
 contracts and the node are where mistakes are expensive; changes there need a clear argument

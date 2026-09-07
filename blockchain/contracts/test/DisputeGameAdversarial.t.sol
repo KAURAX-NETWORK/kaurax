@@ -71,7 +71,9 @@ contract DisputeGameAdversarialTest is Test {
 
     function setUp() public {
         vm.warp(10_000);
-        oracle = new KauraxL2OutputOracle(10, 2, 0, block.timestamp - 1000, FINALIZATION, proposer, address(this), 0);
+        oracle = new KauraxL2OutputOracle(
+            10, 2, 0, block.timestamp - 1000, FINALIZATION, proposer, address(this), 0
+        );
         game = new KauraxDisputeGame(
             address(oracle), guardian, CHALLENGER_BOND, PROPOSER_BOND, RESPONSE_TIMEOUT, 30 days
         );

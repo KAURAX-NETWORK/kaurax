@@ -75,14 +75,18 @@ contract DeployGuardTest is Test {
     }
 
     function test_mustBeDeployedRejectsNothing() public {
-        vm.expectRevert(abi.encodeWithSelector(DeployGuard.NotAContract.selector, address(0), "KauraxMultisig"));
+        vm.expectRevert(
+            abi.encodeWithSelector(DeployGuard.NotAContract.selector, address(0), "KauraxMultisig")
+        );
         guard.mustBeDeployed(address(0), "KauraxMultisig");
     }
 
     /// @dev The revert names the role, so an operator reading a failed deployment knows
     ///      which assignment stopped rather than only that something did.
     function test_revertNamesTheRole() public {
-        vm.expectRevert(abi.encodeWithSelector(DeployGuard.NotAContract.selector, address(0x1234), "inbox owner"));
+        vm.expectRevert(
+            abi.encodeWithSelector(DeployGuard.NotAContract.selector, address(0x1234), "inbox owner")
+        );
         guard.mustHaveCode(address(0x1234), "inbox owner");
     }
 

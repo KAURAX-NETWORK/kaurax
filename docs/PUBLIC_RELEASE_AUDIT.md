@@ -1,6 +1,6 @@
 # KAURAX Public Release Audit
 
-**Date:** 2026-09-08 · **Commit:** `6b1f81a` · **Auditor:** internal
+**Date:** 2026-09-08 · **Commit:** `6b763a5` · **Auditor:** internal
 
 ## Executive Result
 
@@ -59,18 +59,40 @@ not in the repository.
 | GRANT_READINESS.md | Limitations stated, not buried |
 | ROADMAP.md / FUNDING.md | No token sale, no returns, no date for fault proofs |
 
-Checked for contradictions. The score reads 52/100 consistently. No document claims
+Checked for contradictions. **Five stale `47/100` references were found and corrected** in
+README, SECURITY, CONTRIBUTING, GRANT_READINESS and MAINNET_READINESS — the score had been
+updated in one place and not swept. All nine occurrences now read 52/100. No document claims
 trustlessness, fault proofs, decentralisation, mainnet readiness, an audit, or monetary value
 for KAX.
 
-## CI
+## CI Security Gates
 
 Test workflows (`ci`, `contracts`, `frontend`, `docker`) reference **no secrets** and run on
 pull requests — a fork can run them. Deployment workflows reference nine secrets between them
 and are `workflow_dispatch` only, so a fork PR cannot trigger them.
 
-Two gates were hardened during this audit: gitleaks was `continue-on-error` and is now
-blocking, and the private-key scan now inspects context instead of raw hex.
+Two gates were hardened: gitleaks was `continue-on-error` and is now blocking, and the
+private-key scan inspects context instead of raw hex.
+
+**Planted-secret test.** The scanner was verified end to end rather than reasoned about: a
+fake credential bound to `DEPLOYER_PRIVATE_KEY` was placed in an isolated path, the scanner
+found it and exited non-zero, and the repository returned to zero findings once it was
+removed. The probe was never committed.
+
+| Step | Result |
+|---|---|
+| Baseline, clean tree | 0 findings, exit 0 |
+| Probe planted | 1 finding, exit 1 |
+| Probe removed | 0 findings, exit 0 |
+
+**Slither could not be executed locally.** `cbor2`'s binary extension is incompatible with
+the Python 3.15 build on this machine (`symbol not found: _PyType_FromSlots`), so
+`crytic-compile` cannot import. It is configured as a hard CI gate and will run on
+`ubuntu-latest`. This audit therefore reports Slither as **configured but unverified
+locally**, not as passing.
+
+**`forge fmt --check` was failing** and would have broken CI on the first push. Two test
+files were reformatted; all 270 tests still pass afterwards.
 
 That second change fixed a real defect. The old pattern excluded `/tests/` with a leading
 slash, which never matches a top-level `tests/` directory — so the check had been passing
@@ -86,6 +108,8 @@ key placed there.
 | `tests/e2e-testnet.sh` | **12 passed**, 0 failed, live chain |
 | `pnpm typecheck` | 25/25 |
 | `pnpm build` | 19/19 |
+| `forge fmt --check` | clean, **after fixing a failure this audit found** |
+| `slither` | **not run** — environment incompatibility, see above |
 
 Re-run after every change in this audit, not quoted from the previous report.
 
@@ -108,13 +132,23 @@ but not active. No bug bounty.
 
 All of these are in the README, and none was removed to improve a score.
 
-## Critical Blockers
+## Infrastructure Exposure
+
+The production server IP was a hardcoded fallback in eleven application files. Not a secret —
+it serves a public endpoint — but a public repository whose default points at one operator's
+machine makes every fork silently depend on it. Defaults are now `127.0.0.1`; the deployment
+config supplies the real origin.
+
+No private RFC1918 addresses in application source. No developer paths, personal usernames
+or internal hostnames outside Docker network configuration.
+
+## Technical Blockers
 
 **None for a public release.**
 
 The blockers are to *mainnet* and are unchanged: no verifier, no audit, guardian arbitration.
 
-## Required Human Actions
+## Human Actions Required
 
 1. Rotate the xKiro API key — hygiene, not a blocker
 2. Decide how to present the RPC's lack of TLS, or upgrade the host account
@@ -136,7 +170,10 @@ What would make it stronger is not more work by me. It is somebody else reading 
 | Git history secrets | **PASS** |
 | .gitignore | **PASS** |
 | README | **PASS** |
-| Security policy | **PASS** — contact verified |
+| Secret scanning CI | **PASS** — planted-secret test |
+| Private-key detection | **PASS** — context-based |
+| Hardcoded infrastructure | **PASS** |
+| Security policy | **PASS** |
 | Architecture docs | **PASS** |
 | CI | **PASS** |
 | Solidity tests | **PASS** (270) |

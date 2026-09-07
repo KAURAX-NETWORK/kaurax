@@ -21,7 +21,14 @@ contract KauraxL2OutputOracleTest is Test {
         // Move away from timestamp 0 so STARTING_TIMESTAMP is in the past.
         vm.warp(10_000);
         oracle = new KauraxL2OutputOracle(
-            INTERVAL, L3_BLOCK_TIME, START_BLOCK, block.timestamp - 1000, FINALIZATION, proposer, challenger, 0
+            INTERVAL,
+            L3_BLOCK_TIME,
+            START_BLOCK,
+            block.timestamp - 1000,
+            FINALIZATION,
+            proposer,
+            challenger,
+            0
         );
     }
 
@@ -79,7 +86,14 @@ contract KauraxL2OutputOracleTest is Test {
         // block height the chain could have reached by now.
         uint256 hugeInterval = 1_000_000;
         KauraxL2OutputOracle far = new KauraxL2OutputOracle(
-            hugeInterval, L3_BLOCK_TIME, START_BLOCK, block.timestamp - 1, FINALIZATION, proposer, challenger, 0
+            hugeInterval,
+            L3_BLOCK_TIME,
+            START_BLOCK,
+            block.timestamp - 1,
+            FINALIZATION,
+            proposer,
+            challenger,
+            0
         );
 
         vm.prank(proposer);

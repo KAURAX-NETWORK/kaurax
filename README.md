@@ -20,7 +20,7 @@ anything.
 > A fault proof would remove the second clause. Building one is
 > [18–30 engineer-months](docs/FAULT_PROOF_ROADMAP.md).
 >
-> Self-assessed mainnet readiness: **47/100** ([scorecard](MAINNET_READINESS.md)).
+> Self-assessed mainnet readiness: **52/100** ([scorecard](MAINNET_READINESS.md)).
 
 ---
 

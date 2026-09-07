@@ -75,7 +75,14 @@ contract KauraxPortalTest is Test {
     function setUp() public {
         vm.warp(10_000);
         oracle = new KauraxL2OutputOracle(
-            INTERVAL, L3_BLOCK_TIME, START_BLOCK, block.timestamp - 1000, FINALIZATION, proposer, challenger, 0
+            INTERVAL,
+            L3_BLOCK_TIME,
+            START_BLOCK,
+            block.timestamp - 1000,
+            FINALIZATION,
+            proposer,
+            challenger,
+            0
         );
         portal = new KauraxPortal(address(oracle), guardian, sequencerAddress, FORCED_WINDOW);
         passer = new L3ToL2MessagePasser();

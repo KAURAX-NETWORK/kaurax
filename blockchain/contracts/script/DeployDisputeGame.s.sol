@@ -50,8 +50,9 @@ contract DeployDisputeGame is Script {
 
         vm.startBroadcast(deployerKey);
 
-        KauraxDisputeGame game =
-            new KauraxDisputeGame(oracle, guardian, challengerBond, proposerBond, responseTimeout, maxDuration);
+        KauraxDisputeGame game = new KauraxDisputeGame(
+            oracle, guardian, challengerBond, proposerBond, responseTimeout, maxDuration
+        );
 
         DeployGuard.mustBeDeployed(address(game), "KauraxDisputeGame");
         console2.log("KAURAX_DISPUTE_GAME_ADDRESS=%s", address(game));

@@ -34,7 +34,7 @@ report.
 - [x] Fault proof roadmap present, marked design-only
 - [x] Known limitations disclosed — testnet only, no fault proofs, trusted roots, guardian arbiter, single sequencer, no audit
 - [x] No marketing language claiming trustlessness, decentralisation or mainnet readiness
-- [x] Readiness score consistent at 52/100
+- [x] Readiness score consistent at 52/100 — five stale `47/100` references found and corrected
 
 ## Tests
 
@@ -43,12 +43,15 @@ report.
 - [x] Live E2E — 12 passed
 - [x] Typecheck — 25/25 tasks
 - [x] Build — 19/19 tasks
+- [x] `forge fmt --check` — clean, after this audit found and fixed a failure that would have broken CI
 
 ## CI
 
 - [x] Test workflows require no secrets
 - [x] Deployment workflows are `workflow_dispatch` only, so a fork PR cannot run them
 - [x] Secret scanning present and a hard gate (gitleaks, full history)
+- [x] Private-key detection verified by a planted-secret test — detected, then removed
+- [ ] **Slither** — configured as a hard gate; could not be executed locally (Python 3.15 / cbor2 incompatibility). Will run in CI
 - [x] Slither is a hard gate on high severity
 
 ## Licensing

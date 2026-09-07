@@ -111,7 +111,9 @@ contract KauraxDisputeGame {
         uint256 bond
     );
     event ProposerDefended(uint256 indexed gameId, uint128 mid, bytes32 midClaim, uint64 deadline);
-    event ChallengerBisected(uint256 indexed gameId, bool tookLowerHalf, uint128 lo, uint128 hi, uint64 deadline);
+    event ChallengerBisected(
+        uint256 indexed gameId, bool tookLowerHalf, uint128 lo, uint128 hi, uint64 deadline
+    );
     event NarrowedToBlock(uint256 indexed gameId, uint128 blockNumber, bytes32 proposerClaim);
     event GameResolved(uint256 indexed gameId, Status status, address indexed winner, string reason);
     event BondPaid(uint256 indexed gameId, address indexed to, uint256 amount);
@@ -227,9 +229,8 @@ contract KauraxDisputeGame {
 
         // The range under dispute is the span this proposal commits to: the block after the
         // previous proposal, through this one's block.
-        uint128 lo = _outputIndex == 0
-            ? uint128(0)
-            : uint128(ORACLE.getL2Output(_outputIndex - 1).l3BlockNumber) + 1;
+        uint128 lo =
+            _outputIndex == 0 ? uint128(0) : uint128(ORACLE.getL2Output(_outputIndex - 1).l3BlockNumber) + 1;
         uint128 hi = uint128(proposal.l3BlockNumber);
         if (hi < lo) revert RangeNotBisectable();
 
@@ -329,7 +330,10 @@ contract KauraxDisputeGame {
     ///
     ///      The guardian cannot rewrite history: it may only delete output roots that have
     ///      not finalized, and that restriction lives in the oracle, not here.
-    function resolve(uint256 _gameId, bool _challengerWasRight, string calldata _reason) external onlyGuardian {
+    function resolve(uint256 _gameId, bool _challengerWasRight, string calldata _reason)
+        external
+        onlyGuardian
+    {
         Game storage g = _game(_gameId);
         if (g.status != Status.AWAITING_RESOLUTION) revert NotNarrowed();
         if (g.bondsSettled) revert AlreadySettled();
@@ -457,7 +461,6 @@ contract KauraxDisputeGame {
         return !games[slot - 1].bondsSettled;
     }
 
-
     function _refundBoth(uint256 _gameId, Game storage g, string memory _reason) internal {
         g.bondsSettled = true;
         delete liveGameOfOutput[g.outputIndex];
@@ -475,7 +478,7 @@ contract KauraxDisputeGame {
     /// @dev A failed transfer reverts rather than being swallowed. Silently keeping a bond
     ///      because a recipient's fallback reverted would be theft by accident.
     function _pay(uint256 _gameId, address _to, uint256 _amount) internal {
-        (bool ok, ) = payable(_to).call{value: _amount}("");
+        (bool ok,) = payable(_to).call{value: _amount}("");
         if (!ok) revert TransferFailed();
         emit BondPaid(_gameId, _to, _amount);
     }

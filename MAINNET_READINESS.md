@@ -241,7 +241,7 @@ whole sequence on a fork.**
 
 ---
 
-## Score: 47/100
+## Score: 52/100
 
 | | Weight | Score | |
 |---|---|---|---|
