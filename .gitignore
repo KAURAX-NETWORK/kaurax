@@ -33,3 +33,6 @@ blockchain/contracts/lib/
 .DS_Store
 .vercel
 .env*
+
+# Generated from the repository markdown by apps/docs/scripts/collect-docs.mjs
+apps/docs/lib/docs-content.ts
