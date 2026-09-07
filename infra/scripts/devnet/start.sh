@@ -58,7 +58,29 @@ NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 
 if [ ! -f "$ROOT/.env" ]; then
   cp "$ROOT/.env.example" "$ROOT/.env"
-  info "created .env from .env.example"
+
+  # .env.example ships operator keys empty on purpose: it is copied by anyone, and a file
+  # carrying the published Anvil keys is a loaded gun pointed at whoever deploys it
+  # somewhere reachable. This script is unambiguously a local devnet, so it fills them in
+  # here — with those same published keys, which is correct in this context and only this
+  # one. Every address below is documented in the Foundry book; none secures anything.
+  DEV_KEY_0=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+  DEV_KEY_1=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+  DEV_KEY_2=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+  DEV_KEY_3=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+
+  # BSD and GNU sed disagree about -i, so rewrite the file rather than edit in place.
+  awk -v k0="$DEV_KEY_0" -v k1="$DEV_KEY_1" -v k2="$DEV_KEY_2" -v k3="$DEV_KEY_3" '
+    /^SEQUENCER_PRIVATE_KEY=$/ { print "SEQUENCER_PRIVATE_KEY=" k0; next }
+    /^BATCHER_PRIVATE_KEY=$/   { print "BATCHER_PRIVATE_KEY="   k1; next }
+    /^PROPOSER_PRIVATE_KEY=$/  { print "PROPOSER_PRIVATE_KEY="  k2; next }
+    /^DEPLOYER_PRIVATE_KEY=$/  { print "DEPLOYER_PRIVATE_KEY="  k0; next }
+    /^FAUCET_PRIVATE_KEY=$/    { print "FAUCET_PRIVATE_KEY="    k3; next }
+    { print }
+  ' "$ROOT/.env" > "$ROOT/.env.tmp" && mv "$ROOT/.env.tmp" "$ROOT/.env"
+  chmod 600 "$ROOT/.env"
+
+  info "created .env from .env.example, with published devnet keys for local use only"
 fi
 
 set -a; . "$ROOT/.env"; set +a

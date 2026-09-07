@@ -16,8 +16,11 @@
  * and it is one more thing to fail, which is what "Could not reach the KAURAX API" was.
  * Server-side code has no mixed-content restriction, so it talks to the node directly.
  */
+// Defaults to localhost, not to any particular operator's server. This file is public;
+// baking one deployment's IP in as a fallback would make every fork silently depend on it.
+// A deployment sets KAURAX_UPSTREAM_ORIGIN — infra/vercel/*.json does for kaurax.network.
 const SERVER_API_ORIGIN =
-  process.env.KAURAX_UPSTREAM_ORIGIN ?? "http://87.58.152.42:8880";
+  process.env.KAURAX_UPSTREAM_ORIGIN ?? "http://127.0.0.1:4000";
 
 const BROWSER_API_ORIGIN = process.env.NEXT_PUBLIC_KAURAX_API_URL ?? "http://127.0.0.1:4000";
 

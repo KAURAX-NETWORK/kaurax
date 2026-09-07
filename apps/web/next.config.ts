@@ -19,7 +19,10 @@ import type {NextConfig} from "next";
  */
 // The node's public origin. Overridable so a redeploy can follow the server without a
 // code change; the default is the current devnet host.
-const UPSTREAM = process.env.KAURAX_UPSTREAM_ORIGIN ?? "http://87.58.152.42:8880";
+// Defaults to localhost, not to any particular operator's server. This file is public;
+// baking one deployment's IP in as a fallback would make every fork silently depend on it.
+// A deployment sets KAURAX_UPSTREAM_ORIGIN — infra/vercel/*.json does for kaurax.network.
+const UPSTREAM = process.env.KAURAX_UPSTREAM_ORIGIN ?? "http://127.0.0.1:4000";
 
 const config: NextConfig = {
   reactStrictMode: true,

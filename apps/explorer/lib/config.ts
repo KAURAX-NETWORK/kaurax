@@ -13,7 +13,10 @@
  * one more thing that can fail. Server code has no mixed-content restriction, so it talks
  * to the node directly.
  */
-const SERVER_RPC_ORIGIN = process.env.KAURAX_UPSTREAM_ORIGIN ?? "http://87.58.152.42:8880";
+// Defaults to localhost, not to any particular operator's server. This file is public;
+// baking one deployment's IP in as a fallback would make every fork silently depend on it.
+// A deployment sets KAURAX_UPSTREAM_ORIGIN — infra/vercel/*.json does for kaurax.network.
+const SERVER_RPC_ORIGIN = process.env.KAURAX_UPSTREAM_ORIGIN ?? "http://127.0.0.1:4000";
 
 export const config = {
   /** The public URL. Shown to users and given to wallets; must stay HTTPS. */

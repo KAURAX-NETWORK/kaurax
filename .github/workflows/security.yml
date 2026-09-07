@@ -15,11 +15,14 @@ jobs:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
 
+      # A hard gate, not advisory. This repository is public: a committed credential is
+      # not a warning to read later, it is a key to rotate now. fetch-depth 0 above means
+      # the whole history is scanned, not only the diff — a secret removed in a later
+      # commit is still a secret anyone can check out.
       - name: gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
 
       # A committed .env is the failure mode that actually happens. Fail hard on it.
       - name: Reject committed environment files
@@ -30,20 +33,42 @@ jobs:
           fi
           echo "no tracked .env files"
 
-      # .env.example intentionally carries the public Anvil devnet keys. Anything else
-      # that looks like a key outside that file is a finding.
-      - name: Scan for private keys outside .env.example
+      # Matching raw 32-byte hex is the wrong test: an ERC-20 topic0, a Merkle root and a
+      # transaction hash are all 64 hex characters and none is a secret. What makes a
+      # literal suspicious is the name it is bound to. This checks context instead, so it
+      # flags PRIVATE_KEY="0x…" and ignores ERC20_TRANSFER_TOPIC="0x…".
+      #
+      # Two trees legitimately hold the published Anvil keys and are excluded by path:
+      # infra/scripts/devnet/, which injects them into a local .env, and the test trees.
+      - name: Scan for private keys in source
         run: |
-          hits=$(grep -rInE '\b0x[0-9a-fA-F]{64}\b' \
-                  --include='*.ts' --include='*.tsx' --include='*.js' --include='*.mjs' \
-                  --include='*.sol' --include='*.sh' --include='*.yml' --include='*.json' \
-                  --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=out \
-                  --exclude-dir=dist --exclude-dir=.next --exclude-dir=lib \
-                  . | grep -vE '\.env\.example|/test/|/tests/|blockchain/contracts/out/' || true)
-          if [ -n "$hits" ]; then
-            echo "$hits"
-            echo "::warning::32-byte hex literals found outside .env.example. Confirm none is a real key."
-          fi
+          python3 - <<'EOF'
+          import re, subprocess, sys
+
+          SKIP = re.compile(r'(^|/)(tests?|node_modules|out|dist|\.next|lib)/|infra/scripts/devnet/')
+          KEYISH = re.compile(
+              r'(private[_-]?key|secret|mnemonic|seed|signer[_-]?key|deployer[_-]?key)\s*[:=]\s*["\x27]?0x[0-9a-fA-F]{64}',
+              re.I)
+
+          files = subprocess.run(["git", "ls-files"], capture_output=True, text=True).stdout.split()
+          hits = []
+          for f in files:
+              if SKIP.search(f) or not f.endswith((".ts", ".tsx", ".js", ".mjs", ".sol", ".sh", ".yml", ".yaml", ".json", ".env.example")):
+                  continue
+              try:
+                  text = open(f, encoding="utf-8", errors="ignore").read()
+              except OSError:
+                  continue
+              for m in KEYISH.finditer(text):
+                  line = text[:m.start()].count("\n") + 1
+                  hits.append(f"{f}:{line}")
+
+          if hits:
+              for h in hits:
+                  print(f"::error file={h.split(':')[0]},line={h.split(':')[1]}::key-shaped literal bound to a key-like name")
+              sys.exit(1)
+          print("no key-shaped literals bound to key-like names outside tests and the devnet script")
+          EOF
 
   dependencies:
     name: dependency audit
