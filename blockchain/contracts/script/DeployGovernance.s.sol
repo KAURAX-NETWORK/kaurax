@@ -9,6 +9,7 @@ import {KauraxL2OutputOracle} from "../src/L2/KauraxL2OutputOracle.sol";
 import {KauraxPortal} from "../src/L2/KauraxPortal.sol";
 import {KauraxBatchInbox} from "../src/L2/KauraxBatchInbox.sol";
 import {KauraxDisputeGame} from "../src/dispute/KauraxDisputeGame.sol";
+import {DeployGuard} from "../src/libraries/DeployGuard.sol";
 
 /// @notice Deploys governance and hands the privileged roles to it.
 ///
@@ -48,6 +49,10 @@ contract DeployGovernance is Script {
         vm.startBroadcast(deployerKey);
 
         KauraxMultisig multisig = new KauraxMultisig(p.owners, p.threshold);
+        // Assert the deployment took before anything is wired to it. In simulation this
+        // always passes; with --broadcast it is what stops a reverted deployment from being
+        // followed by role assignments to an address that holds nothing.
+        DeployGuard.mustBeDeployed(address(multisig), "KauraxMultisig");
 
         // Guardian of the timelock is the multisig too: a queued proposal that turns out to
         // be hostile can be cancelled by the same m-of-n that could have queued it.
@@ -58,6 +63,7 @@ contract DeployGovernance is Script {
             address(0), // executor: permissionless after the delay
             address(multisig) // guardian: may cancel
         );
+        DeployGuard.mustBeDeployed(address(timelock), "KauraxTimelock");
 
         console2.log("KAURAX_MULTISIG_ADDRESS=%s", address(multisig));
         console2.log("KAURAX_TIMELOCK_ADDRESS=%s", address(timelock));
@@ -80,6 +86,11 @@ contract DeployGovernance is Script {
     /// @dev Each transfer is one-way from the deployer's point of view: after this runs,
     ///      the deploying key can no longer perform these actions. That is the point.
     function _transferRoles(Params memory p, address multisig, address timelock) internal {
+        // Nothing below runs unless both targets are live contracts. A role handed to an
+        // address with no code cannot be taken back: only its current holder may rotate it.
+        DeployGuard.mustHaveCode(multisig, "multisig");
+        DeployGuard.mustHaveCode(timelock, "timelock");
+
         if (p.portal != address(0)) {
             KauraxPortal(payable(p.portal)).setGuardian(multisig);
             console2.log("portal.guardian    -> multisig %s", multisig);

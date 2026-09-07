@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/console2.sol";
 import {KauraxDisputeGame} from "../src/dispute/KauraxDisputeGame.sol";
 import {KauraxL2OutputOracle} from "../src/L2/KauraxL2OutputOracle.sol";
+import {DeployGuard} from "../src/libraries/DeployGuard.sol";
 
 /// @notice Deploys the dispute game and, optionally, hands it the challenger role.
 ///
@@ -31,6 +32,14 @@ contract DeployDisputeGame is Script {
         uint64 maxDuration = uint64(vm.envOr("DISPUTE_MAX_DURATION", uint256(30 days)));
         bool transferRole = vm.envOr("DISPUTE_TRANSFER_CHALLENGER", false);
 
+        // The oracle must already exist, or every later call silently targets nothing.
+        DeployGuard.mustHaveCode(oracle, "output oracle");
+
+        // The guardian decides every dispute. An EOA here would put that decision behind a
+        // single key, which is the arrangement the dispute game exists to replace — so it
+        // must be a contract: a multisig, or a timelock in front of one.
+        DeployGuard.mustHaveCode(guardian, "dispute guardian");
+
         uint256 finalization = KauraxL2OutputOracle(oracle).finalizationPeriodSeconds();
         if (responseTimeout >= finalization) {
             revert(
@@ -44,6 +53,7 @@ contract DeployDisputeGame is Script {
         KauraxDisputeGame game =
             new KauraxDisputeGame(oracle, guardian, challengerBond, proposerBond, responseTimeout, maxDuration);
 
+        DeployGuard.mustBeDeployed(address(game), "KauraxDisputeGame");
         console2.log("KAURAX_DISPUTE_GAME_ADDRESS=%s", address(game));
         console2.log("  guardian            %s", guardian);
         console2.log("  challenger bond     %s wei", challengerBond);

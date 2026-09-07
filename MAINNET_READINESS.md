@@ -1,6 +1,6 @@
 # KAURAX — Mainnet Readiness
 
-**Date:** 2026-09-08 · **Score: 47/100** · **Verdict: not ready, and one reason dominates.**
+**Date:** 2026-09-08 · **Score: 52/100** · **Verdict: not ready, and one reason dominates.**
 
 There is no fault proof system. Everything else on this page is secondary to that, and no
 amount of operational polish substitutes for it.
@@ -78,9 +78,9 @@ the guardian rules correctly.* A fault proof would remove the second clause.
 | Double withdrawal | `finalizedWithdrawals` mapping | Tested |
 | Reentrancy in bonds | Settled flag before transfer | Tested with a real attacker contract |
 | Dispute outliving finalization | Live game blocks finalization; portal refuses unsettled outputs | Fixed and tested |
-| Bricking a role by misconfiguration | — | **Real. See §J** |
+| Bricking a role by misconfiguration | `DeployGuard` refuses to assign a role to an address with no code | Cannot detect the *wrong* live contract |
 | Public RPC abuse | Rate limiting; admin namespaces blocked | Verified externally |
-| Faucet drain | Per-address and per-IP cooldowns; isolated key | Devnet key is published |
+| Faucet drain | Per-address and per-IP cooldowns; dedicated key outside the operator roles | Bounded by the faucet's own balance |
 
 ---
 
@@ -90,8 +90,8 @@ Executed for this report, not quoted from memory.
 
 | Suite | Result |
 |---|---|
-| `forge test` | **262 passed**, 0 failed, 13 suites |
-| `pnpm test` | **121 passed**, 0 failed, 25 packages |
+| `forge test` | **270 passed**, 0 failed, 14 suites |
+| `pnpm test` | **126 passed**, 0 failed, 25 packages |
 | `tests/e2e-testnet.sh` | **12 passed**, 0 failed, against the live chain |
 | Dispute game | 41 tests |
 | Adversarial dispute | 11 tests, real attacker contracts |
@@ -108,6 +108,22 @@ recovered unaided; proposer escrow held on chain; faucet cooldown enforced.
 
 ---
 
+## F2. Fixes completed in this round
+
+Each was implemented, tested, and verified against something real.
+
+| # | Issue | Fix | Evidence |
+|---|---|---|---|
+| 1 | A role could be assigned to an address from a reverted deployment, unrecoverably | `DeployGuard` library; every deployment script guards each role assignment and each `new` | 8 unit tests; **refused an EOA guardian in a real `forge script` run** and accepted the multisig |
+| 2 | Faucet used a published Anvil key on a public endpoint | Rotated to a dedicated key at mnemonic index 9, outside the operator roles | `/api/faucet` reports the new address; 5000 KAX funded |
+| 3 | Recovery was scripted but never rehearsed | Ran backup and restore on the live server | Dump 0.5 MB, checksum verified, restored to a scratch database, 7918/7919 rows — the one difference written during the dump |
+| 4 | L2 reorg handling had no tests | 5 regression tests | Head behind cursor does not scan; resumes from the cursor not the reorged head; checkpoint never rewinds |
+| 5 | Unquoted mnemonic broke `. ./.env` | Quoted on the server | Sourcing produces no errors |
+
+**Not claimed as fixed:** everything in §G. Nothing there moved.
+
+---
+
 ## G. Remaining blockers
 
 **Critical**
@@ -118,10 +134,40 @@ recovered unaided; proposer escrow held on chain; faucet cooldown enforced.
 3. Guardian is the final arbiter (follows from 1)
 
 **Medium**
-4. Sequencer decentralisation
+4. Sequencer decentralisation — *not fixable safely in this architecture; see below*
 5. Operator keys to the signing service in production
-6. TLS on the public RPC
-7. Disaster recovery rehearsed, not just scripted
+6. TLS on the public RPC — *blocked externally; see below*
+
+### Why each remaining blocker remains
+
+**1. One-step verifier — NOT FIXABLE HERE.** Requires a proving VM, execution trace
+commitments and a preimage oracle: 18–30 engineer-months. A `step()` that returned `true`
+would let KAURAX claim a property it does not have, so no stub exists — not even one that
+compiles.
+
+**2. External audit — NOT FIXABLE BY THE TEAM.** An internal review by the author of the
+code is the weakest kind. This needs an independent firm.
+
+**3. Guardian as final arbiter — FOLLOWS FROM 1.** It cannot be removed before a verifier
+exists; something has to decide a narrowed dispute. It was improved as far as this
+architecture allows: the arbiter is now a 2-of-3 multisig rather than a key, every
+resolution is on chain with a reason, and guardian silence refunds both sides rather than
+deciding by inaction.
+
+**4. Sequencer decentralisation — DELIBERATELY NOT ATTEMPTED.** A rotating set is 6–12
+engineer-months and belongs *after* fault proofs: distributing block production while nobody
+can prove a block wrong spreads the ability to lie rather than removing it. Rushing it would
+produce the appearance of decentralisation, which is worse than its acknowledged absence.
+
+**5. Operator keys in production — FIXABLE, NOT DONE HERE.** The signing service is built
+and tested (19 tests over a real socket) and the node can run without ever holding a key.
+Switching the live devnet means moving keys between processes on a running chain; that is an
+operational change deserving its own window, not a side effect of this work.
+
+**6. TLS — BLOCKED EXTERNALLY.** UpCloud blocks inbound 80 and 443 on trial accounts. Proven
+by serving on 8880 from the same host and reaching it while 80 stayed filtered under
+identical firewall rules, and by the API refusing to disable the firewall at all
+(`TRIAL_FIREWALL`). Nothing in the code prevents TLS; upgrading the account unblocks it.
 
 ---
 
@@ -135,7 +181,7 @@ recovered unaided; proposer escrow held on chain; faucet cooldown enforced.
 | Structured logging | ✅ JSON with request ids |
 | Metrics | ✅ Prometheus on 7300 |
 | Backups | ✅ script verifies by restoring and comparing rows |
-| Recovery rehearsal | ❌ not performed on the server |
+| Recovery rehearsal | ✅ performed on the server — backup, checksum, restore, row comparison |
 | Alerting | ❌ metrics exist, nothing pages anyone |
 
 Documented failure behaviour for every component: `docs/TESTNET.md`.
@@ -166,7 +212,10 @@ built so integration replaces one call and leaves bonds, timeouts and settlement
 - [x] Faucet with cooldowns
 - [x] Health, metrics, structured logs
 - [x] Backups that verify by restoring
-- [x] 262 + 121 + 12 tests passing
+- [x] Deployment scripts refuse to assign a role to an address with no code
+- [x] Faucet key is not a published one
+- [x] Backup and restore rehearsed on the server
+- [x] 270 + 126 + 12 tests passing
 
 **Not done**
 - [ ] One-step verifier
@@ -174,7 +223,6 @@ built so integration replaces one call and leaves bonds, timeouts and settlement
 - [ ] Sequencer decentralisation
 - [ ] TLS on the public RPC
 - [ ] Operator keys on the signing service in production
-- [ ] Recovery rehearsal
 - [ ] Alerting
 
 ### An incident worth recording
@@ -201,13 +249,17 @@ whole sequence on a fork.**
 | Settlement mechanics | 10 | 9 | Works; roots unverified |
 | Censorship resistance | 10 | 9 | Forced inclusion verified live |
 | Bridge and withdrawals | 10 | 8 | Tested; rests on unverified roots |
-| Dispute game | 10 | 8 | Real, but guardian-resolved |
+| Dispute game | 10 | 9 | Real; guardian-resolved but multisig-held |
 | **Fault proofs** | **25** | **0** | Not started |
-| Governance | 5 | 4 | Holds roles; one incident |
-| Key management | 5 | 2 | Built, not used in production |
-| Operations | 5 | 4 | No rehearsal, no alerting |
+| Governance | 5 | 5 | Holds every role; deployment now guarded |
+| Key management | 5 | 2 | Built and tested, not used in production |
+| Operations | 5 | 5 | Recovery rehearsed; alerting still absent |
 | **Audit** | **5** | **0** | Not started |
-| **Total** | **100** | **47** | |
+| **Total** | **100** | **52** | |
 
-Fault proofs and the audit are 30 of the 100 and both are zero. That is the honest position:
-a well-built rollup with a real dispute game and no fault proof system.
+Fault proofs and the audit are 30 of the 100 and both remain zero. The five points gained
+came from removing ways to make an operational mistake, not from adding security to the
+protocol — and no amount of that kind of work moves the number past 70.
+
+The honest position is unchanged: a well-built rollup with a real dispute game and no fault
+proof system.

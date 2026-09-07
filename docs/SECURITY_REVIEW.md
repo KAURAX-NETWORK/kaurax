@@ -16,7 +16,7 @@ written during this work; two were live outages I caused and fixed.
 | CRITICAL | 0 | 0 |
 | HIGH | 3 | 3 |
 | MEDIUM | 5 | 2 |
-| LOW | 4 | 3 |
+| LOW | 4 | 1 |
 | INFORMATIONAL | 3 | 2 |
 
 No CRITICAL findings does not mean the system is safe. The HIGH findings are structural and
@@ -126,18 +126,19 @@ closed *and* silently is worse than one that fails loudly.
 by one timeout. The alternative — parallel games — lets one bond force a proposer to defend
 many at once, which is worse. Cost of the grief is the challenger's bond.
 
-### L-2 — Faucet uses a published devnet key
-**Open, devnet only.** The faucet account is a well-known Anvil key. Anyone can drain it.
-It is isolated from the operator roles, so the blast radius is the faucet's own balance. A
-public testnet needs a key that is not published.
+### L-2 — Faucet used a published devnet key
+**Fixed.** Rotated to a dedicated key derived at mnemonic index 9, outside the operator
+roles and outside the genesis demo accounts. Draining it still cannot touch the sequencer,
+batcher or proposer, and it is no longer a key anyone can look up.
 
 ### L-3 — `getGame` panicked on an unknown id
 **Fixed.** Returned an array out-of-bounds panic instead of `UnknownGame`. Found by
 `test_unknownGameReverts`.
 
 ### L-4 — Unquoted mnemonic in `.env`
-**Open, cosmetic.** `KAURAX_DEV_MNEMONIC=word word word` breaks `. ./.env` in a shell.
-Docker Compose parses the file directly so the stack is unaffected.
+**Fixed.** Quoted. Docker Compose parses the file itself and was unaffected, which is why
+this survived: it only broke the scripts that source the file, and those failed in a way
+that looked like a different problem.
 
 ---
 
@@ -174,3 +175,5 @@ exists, it is named.
 | Admin RPC exposure | Sound. `anvil_*` and `evm_*` refused on the public endpoint, verified externally |
 | Internal ports | Sound. Engine, PostgreSQL and Grafana unreachable from the internet, verified externally |
 | Integer overflow | Sound. Solidity 0.8 checked arithmetic; no `unchecked` blocks in the dispute game |
+| Role assignment to a dead address | Sound as of this round. `DeployGuard` refuses any address without code; proven by refusing an EOA guardian in a real deployment |
+| L2 reorg during derivation | Sound. Scanning stops while the head is behind the cursor, resumes from the cursor rather than the reorged head, and the durable checkpoint never rewinds (5 tests) |

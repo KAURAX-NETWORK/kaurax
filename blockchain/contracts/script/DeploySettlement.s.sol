@@ -7,6 +7,7 @@ import {KauraxL2OutputOracle} from "../src/L2/KauraxL2OutputOracle.sol";
 import {KauraxPortal} from "../src/L2/KauraxPortal.sol";
 import {KauraxBatchInbox} from "../src/L2/KauraxBatchInbox.sol";
 import {KauraxL2ERC20Bridge} from "../src/L2/KauraxL2ERC20Bridge.sol";
+import {DeployGuard} from "../src/libraries/DeployGuard.sol";
 
 /// @notice Deploys the KAURAX settlement contracts onto the underlying L2.
 ///
@@ -51,6 +52,11 @@ contract DeploySettlement is Script {
         // needs the oracle at construction and the oracle needs the portal afterwards.
         // From here, the oracle refuses output proposals while a forced transaction is
         // overdue — censoring one user halts settlement for everyone.
+        DeployGuard.mustBeDeployed(address(oracle), "KauraxL2OutputOracle");
+        DeployGuard.mustBeDeployed(address(portal), "KauraxPortal");
+        DeployGuard.mustBeDeployed(address(inbox), "KauraxBatchInbox");
+        DeployGuard.mustBeDeployed(address(l2Bridge), "KauraxL2ERC20Bridge");
+
         oracle.setForcedInclusion(address(portal));
 
         vm.stopBroadcast();
