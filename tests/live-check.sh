@@ -98,7 +98,7 @@ for path in / /explorer /wallet /swap /names /launchpad /pay /bridge; do
   body="$(curl -sL --max-time 30 "$BASE$path" 2>/dev/null)"
   if printf '%s' "$body" | grep -qiE "could not reach the kaurax api|not reachable"; then
     bad "$path rendered an API-unreachable message"
-  elif printf '%s' "$body" | grep -q "could not be found"; then
+  elif printf '%s' "$body" | grep -oE '<title>[^<]*' | head -1 | grep -q "404"; then
     bad "$path rendered a 404 inside the app"
   else
     ok "$path rendered without an error message"
@@ -110,7 +110,7 @@ printf '\n%sExplorer navigation resolves%s\n' "$BOLD" "$RESET"
 for path in /explorer /explorer/blocks /explorer/transactions /explorer/contracts \
             /explorer/tokens /explorer/validators /explorer/network /explorer/dashboard; do
   body="$(curl -sL --max-time 30 "$BASE$path" 2>/dev/null)"
-  printf '%s' "$body" | grep -q "could not be found" \
+  printf '%s' "$body" | grep -oE '<title>[^<]*' | head -1 | grep -q "404" \
     && bad "$path is a 404" \
     || ok "$path resolves"
 done

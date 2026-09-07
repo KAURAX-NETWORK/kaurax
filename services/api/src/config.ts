@@ -51,7 +51,11 @@ function num(key: string, fallback: number): number {
 }
 
 export function loadApiConfig(): ApiConfig {
-  const origins = (optional("API_CORS_ORIGINS") ?? "")
+  // CORS_ORIGINS is accepted as well as API_CORS_ORIGINS. Setting the wrong one of these
+  // is silent and expensive: the allow-list ends up empty, @fastify/cors answers no
+  // preflight, and every cross-origin browser call fails while curl — which sends no
+  // preflight — keeps working. That combination is very hard to read from the outside.
+  const origins = (optional("API_CORS_ORIGINS") ?? optional("CORS_ORIGINS") ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
