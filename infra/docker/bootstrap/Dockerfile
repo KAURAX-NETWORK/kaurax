@@ -3,6 +3,10 @@
 FROM ghcr.io/foundry-rs/foundry:v1.5.1 AS contracts
 WORKDIR /repo/blockchain/contracts
 COPY blockchain/contracts/ ./
+# lib/ is a git submodule checkout and is not part of a deployment copy of the tree, so
+# fetch forge-std here rather than depending on whatever happened to be synced. --no-git
+# because this is not a git repository inside the image.
+RUN forge install foundry-rs/forge-std --no-git 2>/dev/null || true
 RUN forge build
 
 # ---------------------------------------------------------------------------

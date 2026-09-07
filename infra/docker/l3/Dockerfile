@@ -9,6 +9,10 @@ COPY pnpm-workspace.yaml package.json tsconfig.base.json turbo.json ./
 COPY packages/config/package.json packages/config/
 COPY packages/types/package.json  packages/types/
 COPY blockchain/l3/package.json   blockchain/l3/
+# The node dev-depends on the reference signing service, because its signer tests exercise
+# the real service over a real socket rather than a mock. pnpm resolves workspace
+# devDependencies even when it will not build them, so the manifest has to be here.
+COPY services/signer/package.json services/signer/
 RUN pnpm install --filter @kaurax/config --filter @kaurax/types --filter @kaurax/l3
 
 COPY packages/config packages/config
