@@ -1,0 +1,73 @@
+# Self-contained three-layer stack.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.devnet.yml up -d
+#
+# KAURAX normally settles to a real L2 that someone else operates. This overlay adds the
+# two lower layers so the whole thing runs on one machine: an L1 stand-in, an L2 stand-in,
+# and the settlement contracts deployed onto that L2 by the existing bootstrap service.
+#
+# It is a devnet, and the network's own status endpoints say so. What it is NOT is a
+# simulation: these are real EVM chains, the settlement contracts are really deployed, and
+# every KAURAX block is really batched to the L2 below it. The difference from a public
+# testnet is who runs the L2, not whether the mechanism is real.
+#
+# Both chains derive their prefunded accounts from KAURAX_DEV_MNEMONIC. Generate a random
+# one per deployment — with the published Anvil mnemonic, anyone on the internet would hold
+# the batcher key of a publicly reachable chain.
+services:
+  l1:
+    image: ghcr.io/foundry-rs/foundry:v1.5.1
+    container_name: kaurax-l1
+    restart: unless-stopped
+    entrypoint: ["anvil"]
+    command:
+      - --host=0.0.0.0
+      - --port=8545
+      - --chain-id=${L1_CHAIN_ID:-8410}
+      - --block-time=${L1_BLOCK_TIME:-12}
+      - --mnemonic=${KAURAX_DEV_MNEMONIC:?KAURAX_DEV_MNEMONIC must be set}
+      - --state=/data/l1-state.json
+      - --state-interval=30
+    volumes: [l1-state:/data]
+    expose: ["8545"]
+    healthcheck:
+      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://127.0.0.1:8545"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [kaurax]
+
+  l2:
+    image: ghcr.io/foundry-rs/foundry:v1.5.1
+    container_name: kaurax-l2
+    restart: unless-stopped
+    entrypoint: ["anvil"]
+    command:
+      - --host=0.0.0.0
+      - --port=9545
+      - --chain-id=${L2_CHAIN_ID:-8415}
+      - --block-time=${L2_BLOCK_TIME:-2}
+      - --mnemonic=${KAURAX_DEV_MNEMONIC:?KAURAX_DEV_MNEMONIC must be set}
+      - --state=/data/l2-state.json
+      - --state-interval=30
+    volumes: [l2-state:/data]
+    expose: ["9545"]
+    healthcheck:
+      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://127.0.0.1:9545"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks: [kaurax]
+
+  # The settlement contracts go onto the L2 above, so it must be answering first.
+  bootstrap:
+    depends_on:
+      l2: {condition: service_healthy}
+
+  kaurax-l3:
+    depends_on:
+      l2: {condition: service_healthy}
+
+volumes:
+  l1-state:
+  l2-state:
