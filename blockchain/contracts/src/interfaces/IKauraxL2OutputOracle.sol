@@ -35,4 +35,16 @@ interface IKauraxL2OutputOracle {
     function nextBlockNumber() external view returns (uint256);
     function getL2OutputIndexAfter(uint256 _l3BlockNumber) external view returns (uint256);
     function finalizationPeriodSeconds() external view returns (uint256);
+
+    /// @notice Who proposed an output. Zero when the index holds nothing.
+    function proposalProposer(uint256 _l2OutputIndex) external view returns (address);
+
+    /// @notice Escrow held against an output index.
+    function proposalBond(uint256 _l2OutputIndex) external view returns (uint256);
+
+    /// @notice Past its window and not under dispute.
+    function isOutputFinalized(uint256 _l2OutputIndex) external view returns (bool);
+
+    /// @notice Withdraw bonds credited to the caller.
+    function withdrawBond() external;
 }

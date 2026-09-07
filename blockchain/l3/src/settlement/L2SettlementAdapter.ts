@@ -262,6 +262,11 @@ export class L2SettlementAdapter implements SettlementInterface {
       abi: outputOracleAbi,
       functionName: "proposeL2Output",
       args: [args.outputRoot, args.l3BlockNumber, args.l2BlockHash, args.l2BlockNumber],
+      // The oracle escrows a bond with every output root, so a claim carries risk from the
+      // moment it is committed rather than from the moment somebody objects. Read from the
+      // contract rather than configured here: a mismatch would reject every proposal, and
+      // the contract is the only thing that knows the right answer.
+      value: await this.proposerBond(),
     });
 
     const receipt = await this.l2.waitForTransactionReceipt({hash: txHash});
@@ -269,6 +274,33 @@ export class L2SettlementAdapter implements SettlementInterface {
       throw new Error(`Output proposal reverted on ${this.l2Name} (tx ${txHash})`);
     }
     return txHash as Hex;
+  }
+
+  /**
+   * The escrow the output oracle requires with each proposal.
+   *
+   * Cached after the first read: it is immutable in the contract, and fetching it before
+   * every proposal would add a round trip to the chain's critical path for a value that
+   * cannot change.
+   */
+  private cachedProposerBond: bigint | null = null;
+
+  async proposerBond(): Promise<bigint> {
+    if (this.cachedProposerBond !== null) return this.cachedProposerBond;
+    try {
+      const bond = (await this.l2.readContract({
+        address: this.outputOracle,
+        abi: outputOracleAbi,
+        functionName: "PROPOSER_BOND",
+      })) as bigint;
+      this.cachedProposerBond = bond;
+      return bond;
+    } catch {
+      // An oracle deployed before bonds existed has no such function. Treating that as zero
+      // keeps an older deployment working rather than halting settlement on it.
+      this.cachedProposerBond = 0n;
+      return 0n;
+    }
   }
 
   /**

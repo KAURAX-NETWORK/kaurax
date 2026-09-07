@@ -26,6 +26,7 @@ contract DisputeGameTest is Test {
     uint256 internal constant FINALIZATION = 7 days;
 
     uint256 internal constant CHALLENGER_BOND = 1 ether;
+    /// @dev Escrowed by the oracle at proposal time, not collected by the game.
     uint256 internal constant PROPOSER_BOND = 2 ether;
     uint64 internal constant RESPONSE_TIMEOUT = 6 hours;
     uint64 internal constant MAX_DURATION = 30 days;
@@ -36,7 +37,14 @@ contract DisputeGameTest is Test {
         // The oracle is deployed with the deployer as challenger so that the dispute game's
         // address can be set afterwards — the two contracts need each other.
         oracle = new KauraxL2OutputOracle(
-            SUBMISSION_INTERVAL, L3_BLOCK_TIME, 0, block.timestamp - 1000, FINALIZATION, proposer, address(this)
+            SUBMISSION_INTERVAL,
+            L3_BLOCK_TIME,
+            0,
+            block.timestamp - 1000,
+            FINALIZATION,
+            proposer,
+            address(this),
+            PROPOSER_BOND
         );
 
         game = new KauraxDisputeGame(
@@ -44,7 +52,10 @@ contract DisputeGameTest is Test {
         );
 
         // The whole point: deletion becomes reachable only through a resolved dispute.
+        oracle.setDisputeGame(address(game));
         oracle.setChallenger(address(game));
+
+        vm.deal(proposer, 100 ether);
 
         // One output before anything under test, so a disputed proposal spans a real range
         // of blocks rather than the degenerate single-block case at index 0. Both are worth
@@ -65,12 +76,12 @@ contract DisputeGameTest is Test {
         vm.warp(block.timestamp + SUBMISSION_INTERVAL * L3_BLOCK_TIME + 1);
         index = oracle.nextOutputIndex();
         vm.prank(proposer);
-        oracle.proposeL2Output(keccak256(abi.encode(next)), next, bytes32(0), 0);
+        oracle.proposeL2Output{value: PROPOSER_BOND}(keccak256(abi.encode(next)), next, bytes32(0), 0);
     }
 
     function _openGame(uint256 outputIndex) internal returns (uint256 gameId) {
         vm.prank(challenger);
-        gameId = game.challenge{value: CHALLENGER_BOND}(outputIndex, proposer);
+        gameId = game.challenge{value: CHALLENGER_BOND}(outputIndex);
     }
 
     /// @dev Plays a full game to a single block. Returns the game id.
@@ -81,7 +92,7 @@ contract DisputeGameTest is Test {
             if (g.status == KauraxDisputeGame.Status.AWAITING_RESOLUTION) break;
             if (g.status == KauraxDisputeGame.Status.PROPOSER_TURN) {
                 vm.prank(proposer);
-                game.defend{value: g.proposerBond == 0 ? PROPOSER_BOND : 0}(gameId, keccak256(abi.encode(i)));
+                game.defend(gameId, keccak256(abi.encode(i)));
             } else if (g.status == KauraxDisputeGame.Status.CHALLENGER_TURN) {
                 vm.prank(challenger);
                 game.bisect(gameId, true);
@@ -95,7 +106,7 @@ contract DisputeGameTest is Test {
     ///      one block cannot be bisected, so it must reach resolution directly.
     function test_singleBlockRangeGoesStraightToResolution() public {
         KauraxL2OutputOracle single = new KauraxL2OutputOracle(
-            1, L3_BLOCK_TIME, 0, block.timestamp - 1000, FINALIZATION, proposer, address(this)
+            1, L3_BLOCK_TIME, 0, block.timestamp - 1000, FINALIZATION, proposer, address(this), 0
         );
         KauraxDisputeGame g2 = new KauraxDisputeGame(
             address(single), guardian, CHALLENGER_BOND, PROPOSER_BOND, RESPONSE_TIMEOUT, MAX_DURATION
@@ -110,9 +121,9 @@ contract DisputeGameTest is Test {
         single.proposeL2Output(keccak256("root"), nextBlock, bytes32(0), 0);
 
         vm.prank(challenger);
-        uint256 id = g2.challenge{value: CHALLENGER_BOND}(0, proposer);
+        uint256 id = g2.challenge{value: CHALLENGER_BOND}(0);
         vm.prank(proposer);
-        g2.defend{value: PROPOSER_BOND}(id, keccak256("claim"));
+        g2.defend(id, keccak256("claim"));
 
         KauraxDisputeGame.Game memory g = g2.getGame(id);
         assertEq(uint8(g.status), uint8(KauraxDisputeGame.Status.AWAITING_RESOLUTION));
@@ -124,7 +135,7 @@ contract DisputeGameTest is Test {
     function test_anyoneCanChallenge() public {
         uint256 idx = _propose();
         vm.prank(stranger); // not the configured challenger of the old design
-        uint256 id = stranger == address(0) ? 0 : game.challenge{value: CHALLENGER_BOND}(idx, proposer);
+        uint256 id = stranger == address(0) ? 0 : game.challenge{value: CHALLENGER_BOND}(idx);
         assertEq(game.getGame(id).challenger, stranger);
     }
 
@@ -132,14 +143,15 @@ contract DisputeGameTest is Test {
         uint256 idx = _propose();
         vm.prank(challenger);
         vm.expectRevert(abi.encodeWithSelector(KauraxDisputeGame.WrongBond.selector, CHALLENGER_BOND, 0.5 ether));
-        game.challenge{value: 0.5 ether}(idx, proposer);
+        game.challenge{value: 0.5 ether}(idx);
     }
 
-    function test_challengeRejectsZeroProposer() public {
-        uint256 idx = _propose();
+    /// @dev The proposer is read from the oracle now, so an index nobody proposed cannot be
+    ///      disputed — and a challenger can no longer bind an arbitrary address to a game.
+    function test_challengeRejectsIndexWithNoProposer() public {
         vm.prank(challenger);
-        vm.expectRevert(KauraxDisputeGame.ZeroAddress.selector);
-        game.challenge{value: CHALLENGER_BOND}(idx, address(0));
+        vm.expectRevert();
+        game.challenge{value: CHALLENGER_BOND}(999);
     }
 
     /// @dev Without this, one attacker bond forces the proposer to defend N games at once.
@@ -148,7 +160,7 @@ contract DisputeGameTest is Test {
         uint256 first = _openGame(idx);
         vm.prank(stranger);
         vm.expectRevert(abi.encodeWithSelector(KauraxDisputeGame.GameAlreadyLive.selector, first));
-        game.challenge{value: CHALLENGER_BOND}(idx, proposer);
+        game.challenge{value: CHALLENGER_BOND}(idx);
     }
 
     function test_cannotChallengeFinalizedOutput() public {
@@ -156,48 +168,73 @@ contract DisputeGameTest is Test {
         vm.warp(block.timestamp + FINALIZATION + 1);
         vm.prank(challenger);
         vm.expectRevert(KauraxDisputeGame.OutputAlreadyFinalized.selector);
-        game.challenge{value: CHALLENGER_BOND}(idx, proposer);
+        game.challenge{value: CHALLENGER_BOND}(idx);
     }
 
     function test_cannotChallengeNonexistentOutput() public {
         vm.prank(challenger);
         vm.expectRevert();
-        game.challenge{value: CHALLENGER_BOND}(99, proposer);
+        game.challenge{value: CHALLENGER_BOND}(99);
     }
 
     // ---------------------------------------------------------- bisection --
 
-    function test_defendRequiresProposerBondOnce() public {
+    /// @dev The escrow is taken when the root is proposed, so a claim carries risk before
+    ///      anyone objects to it — which is the property the late-bond design lacked.
+    function test_escrowIsHeldFromProposalTime() public {
+        uint256 idx = _propose();
+        assertEq(oracle.proposalBond(idx), PROPOSER_BOND, "escrow held at proposal time");
+        assertEq(oracle.proposalProposer(idx), proposer, "proposer recorded");
+    }
+
+    function test_proposalRejectedWithoutEscrow() public {
+        uint256 next = oracle.nextBlockNumber();
+        vm.warp(block.timestamp + SUBMISSION_INTERVAL * L3_BLOCK_TIME + 1);
+        vm.prank(proposer);
+        vm.expectRevert(abi.encodeWithSelector(KauraxL2OutputOracle.WrongProposerBond.selector, PROPOSER_BOND, 0));
+        oracle.proposeL2Output(keccak256("x"), next, bytes32(0), 0);
+    }
+
+    /// @dev The whole point of M-1: a live game holds the window open.
+    function test_liveGameKeepsOutputUnfinalized() public {
+        uint256 idx = _propose();
+        _openGame(idx);
+        vm.warp(block.timestamp + FINALIZATION + 1);
+        assertFalse(oracle.isOutputFinalized(idx), "a disputed output must not finalize");
+    }
+
+    function test_outputFinalizesOnceTheGameSettles() public {
         uint256 idx = _propose();
         uint256 id = _openGame(idx);
+        vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
+        game.resolveTimeout(id); // challenger wins; output deleted
+        assertEq(oracle.nextOutputIndex(), idx, "deleted");
+    }
 
-        vm.prank(proposer);
-        vm.expectRevert(abi.encodeWithSelector(KauraxDisputeGame.WrongBond.selector, PROPOSER_BOND, 0));
-        game.defend(id, bytes32(uint256(1)));
+    function test_proposerReclaimsEscrowAfterFinalization() public {
+        uint256 idx = _propose();
+        vm.warp(block.timestamp + FINALIZATION + 1);
+        assertTrue(oracle.isOutputFinalized(idx));
 
+        uint256 before = proposer.balance;
         vm.prank(proposer);
-        game.defend{value: PROPOSER_BOND}(id, bytes32(uint256(1)));
-        assertEq(game.getGame(id).proposerBond, PROPOSER_BOND);
-
-        // Second move must not send another bond.
-        vm.prank(challenger);
-        game.bisect(id, true);
+        oracle.claimProposalBond(idx);
         vm.prank(proposer);
-        vm.expectRevert(abi.encodeWithSelector(KauraxDisputeGame.WrongBond.selector, 0, PROPOSER_BOND));
-        game.defend{value: PROPOSER_BOND}(id, bytes32(uint256(2)));
+        oracle.withdrawBond();
+        assertEq(proposer.balance, before + PROPOSER_BOND, "escrow returned");
     }
 
     function test_onlyProposerMayDefend() public {
         uint256 id = _openGame(_propose());
         vm.prank(stranger);
         vm.expectRevert(KauraxDisputeGame.NotProposer.selector);
-        game.defend{value: PROPOSER_BOND}(id, bytes32(uint256(1)));
+        game.defend(id, bytes32(uint256(1)));
     }
 
     function test_onlyChallengerMayBisect() public {
         uint256 id = _openGame(_propose());
         vm.prank(proposer);
-        game.defend{value: PROPOSER_BOND}(id, bytes32(uint256(1)));
+        game.defend(id, bytes32(uint256(1)));
         vm.prank(stranger);
         vm.expectRevert(KauraxDisputeGame.NotChallenger.selector);
         game.bisect(id, true);
@@ -217,7 +254,7 @@ contract DisputeGameTest is Test {
         uint128 span = before.hi - before.lo;
 
         vm.prank(proposer);
-        game.defend{value: PROPOSER_BOND}(id, bytes32(uint256(1)));
+        game.defend(id, bytes32(uint256(1)));
         vm.prank(challenger);
         game.bisect(id, true);
 
@@ -239,7 +276,7 @@ contract DisputeGameTest is Test {
             if (g.status == KauraxDisputeGame.Status.AWAITING_RESOLUTION) break;
             if (g.status == KauraxDisputeGame.Status.PROPOSER_TURN) {
                 vm.prank(proposer);
-                game.defend{value: g.proposerBond == 0 ? PROPOSER_BOND : 0}(id, bytes32(i));
+                game.defend(id, bytes32(i));
             } else {
                 vm.prank(challenger);
                 game.bisect(id, choices[i % 8]);
@@ -261,7 +298,11 @@ contract DisputeGameTest is Test {
         game.resolve(id, true, "state root did not match");
 
         assertEq(uint8(game.getGame(id).status), uint8(KauraxDisputeGame.Status.RESOLVED_CHALLENGER_WINS));
-        assertEq(challenger.balance, before + CHALLENGER_BOND + PROPOSER_BOND, "winner takes both bonds");
+        assertEq(
+            challenger.balance,
+            before + CHALLENGER_BOND + PROPOSER_BOND,
+            "challenger recovers its bond and takes the proposer's escrow"
+        );
         assertEq(oracle.nextOutputIndex(), idx, "output must be deleted");
     }
 
@@ -274,7 +315,9 @@ contract DisputeGameTest is Test {
         game.resolve(id, false, "claim verified against the node");
 
         assertEq(uint8(game.getGame(id).status), uint8(KauraxDisputeGame.Status.RESOLVED_PROPOSER_WINS));
-        assertEq(proposer.balance, before + CHALLENGER_BOND + PROPOSER_BOND);
+        // The proposer takes the challenger's bond. Its own escrow stays with the oracle
+        // and is reclaimable once the output finalizes.
+        assertEq(proposer.balance, before + CHALLENGER_BOND);
         assertEq(oracle.nextOutputIndex(), idx + 1, "output must survive");
     }
 
@@ -314,8 +357,11 @@ contract DisputeGameTest is Test {
         game.resolveTimeout(id);
 
         assertEq(uint8(game.getGame(id).status), uint8(KauraxDisputeGame.Status.RESOLVED_TIMEOUT));
-        // The proposer never posted a bond, so the challenger recovers only its own.
-        assertEq(challenger.balance, before + CHALLENGER_BOND);
+        assertEq(
+            challenger.balance,
+            before + CHALLENGER_BOND + PROPOSER_BOND,
+            "abandonment forfeits the escrow to the challenger"
+        );
         assertEq(oracle.nextOutputIndex(), idx, "abandoned claim must not stand");
     }
 
@@ -323,13 +369,13 @@ contract DisputeGameTest is Test {
         uint256 idx = _propose();
         uint256 id = _openGame(idx);
         vm.prank(proposer);
-        game.defend{value: PROPOSER_BOND}(id, bytes32(uint256(1)));
+        game.defend(id, bytes32(uint256(1)));
 
         uint256 before = proposer.balance;
         vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
         game.resolveTimeout(id);
 
-        assertEq(proposer.balance, before + CHALLENGER_BOND + PROPOSER_BOND);
+        assertEq(proposer.balance, before + CHALLENGER_BOND);
         assertEq(oracle.nextOutputIndex(), idx + 1, "unchallenged claim stands");
     }
 
@@ -344,7 +390,8 @@ contract DisputeGameTest is Test {
 
         assertEq(uint8(game.getGame(id).status), uint8(KauraxDisputeGame.Status.CANCELLED));
         assertEq(challenger.balance, cBefore + CHALLENGER_BOND, "challenger refunded");
-        assertEq(proposer.balance, pBefore + PROPOSER_BOND, "proposer refunded");
+        // The proposer never staked with the game; its escrow was never at risk here.
+        assertEq(proposer.balance, pBefore, "proposer unaffected");
     }
 
     function test_cannotTimeoutBeforeDeadline() public {
@@ -366,7 +413,7 @@ contract DisputeGameTest is Test {
         vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
         vm.prank(proposer);
         vm.expectRevert();
-        game.defend{value: PROPOSER_BOND}(id, bytes32(uint256(1)));
+        game.defend(id, bytes32(uint256(1)));
     }
 
     // -------------------------------------------------------- accounting --
@@ -399,6 +446,54 @@ contract DisputeGameTest is Test {
         vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
         game.resolveTimeout(id);
         assertEq(address(game).balance, 0);
+    }
+
+    // --------------------------------------------- finalization interlock --
+
+    /// @dev A live game holds the window open even once the timer has run out. Without
+    ///      this a challenger can win and find the commitment already spent against.
+    function test_liveGameHoldsFinalizationOpenPastTheTimer() public {
+        uint256 idx = _propose();
+        _openGame(idx);
+
+        vm.warp(block.timestamp + FINALIZATION + 1);
+        assertFalse(oracle.isOutputFinalized(idx), "a disputed output must not finalize on the timer alone");
+    }
+
+    /// @dev And settling releases it, or one abandoned game would freeze an output forever.
+    function test_settlingTheGameReleasesFinalization() public {
+        uint256 idx = _propose();
+        uint256 id = _openGame(idx);
+
+        // Proposer answers; challenger walks away, so the claim stands.
+        vm.prank(proposer);
+        game.defend(id, bytes32(uint256(1)));
+        vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
+        game.resolveTimeout(id);
+
+        assertEq(oracle.nextOutputIndex(), idx + 1, "claim stands");
+        vm.warp(block.timestamp + FINALIZATION + 1);
+        assertTrue(oracle.isOutputFinalized(idx), "settled game releases the window");
+    }
+
+    function test_disputeGameEnforcedIsReportedHonestly() public view {
+        assertTrue(oracle.disputeGameEnforced());
+    }
+
+    /// @dev Deleting an output refunds the proposals above it, which were never adjudicated.
+    function test_collateralProposalsAreRefundedNotSlashed() public {
+        uint256 idx = _propose();
+        _propose(); // a later proposal, deleted as a consequence
+        uint256 id = _playToNarrowed(idx);
+
+        vm.prank(guardian);
+        game.resolve(id, true, "wrong root");
+
+        // The later proposal's escrow is credited back to its proposer.
+        uint256 before = proposer.balance;
+        vm.prank(proposer);
+        oracle.withdrawBond();
+        assertEq(proposer.balance, before + PROPOSER_BOND, "collateral proposal refunded");
     }
 
     // ------------------------------------------------------------ honesty --

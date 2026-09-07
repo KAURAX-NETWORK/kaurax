@@ -40,7 +40,7 @@ contract ForcedInclusionTest is Test {
         vm.roll(1000);
 
         oracle = new KauraxL2OutputOracle(
-            INTERVAL, 2, START_BLOCK, block.timestamp - 1000, 120, proposer, challenger
+            INTERVAL, 2, START_BLOCK, block.timestamp - 1000, 120, proposer, challenger, 0
         );
         portal = new KauraxPortal(address(oracle), guardian, sequencer, WINDOW);
 
@@ -272,7 +272,7 @@ contract ForcedInclusionTest is Test {
     /// rather than implying a guarantee it is not providing.
     function test_unwiredOracleReportsEnforcementOff() public {
         KauraxL2OutputOracle bare = new KauraxL2OutputOracle(
-            INTERVAL, 2, START_BLOCK, block.timestamp - 1000, 120, proposer, challenger
+            INTERVAL, 2, START_BLOCK, block.timestamp - 1000, 120, proposer, challenger, 0
         );
         assertFalse(bare.forcedInclusionEnforced());
 
@@ -284,7 +284,7 @@ contract ForcedInclusionTest is Test {
 
     function test_onlyChallengerMayWireEnforcement() public {
         KauraxL2OutputOracle bare = new KauraxL2OutputOracle(
-            INTERVAL, 2, START_BLOCK, block.timestamp - 1000, 120, proposer, challenger
+            INTERVAL, 2, START_BLOCK, block.timestamp - 1000, 120, proposer, challenger, 0
         );
         vm.prank(alice);
         vm.expectRevert(KauraxL2OutputOracle.NotChallenger.selector);

@@ -457,7 +457,7 @@ contract GovernanceTest is Test {
     function test_multisigCanGuardThePortal() public {
         vm.warp(10_000);
         KauraxL2OutputOracle oracle = new KauraxL2OutputOracle(
-            10, 2, 1, block.timestamp - 1000, 120, makeAddr("proposer"), address(multisig)
+            10, 2, 1, block.timestamp - 1000, 120, makeAddr("proposer"), address(multisig), 0
         );
         KauraxPortal portal = new KauraxPortal(address(oracle), address(multisig), makeAddr("sequencer"), 100);
 

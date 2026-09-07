@@ -38,7 +38,8 @@ contract DeploySettlement is Script {
             block.timestamp,
             cfg.finalizationPeriod,
             cfg.proposer,
-            cfg.challenger
+            cfg.challenger,
+            cfg.proposerBond
         );
 
         KauraxPortal portal =
@@ -64,6 +65,7 @@ contract DeploySettlement is Script {
     }
 
     struct Config {
+        uint256 proposerBond;
         address proposer;
         address batcher;
         address sequencer;
@@ -86,6 +88,10 @@ contract DeploySettlement is Script {
         // KauraxMultisig behind a KauraxTimelock. See docs/security.md.
         cfg.guardian = vm.envOr("GUARDIAN_ADDRESS", vm.addr(deployerKey));
         cfg.challenger = vm.envOr("CHALLENGER_ADDRESS", vm.addr(deployerKey));
+        // Escrowed with every output root. Zero is permitted and means the devnet default:
+        // proposals carry no stake, which is fine when the chain carries no value and is
+        // not fine anywhere else. docs/DISPUTE_GAME.md covers sizing.
+        cfg.proposerBond = vm.envOr("PROPOSER_BOND", uint256(0));
 
         cfg.submissionInterval = vm.envOr("OUTPUT_SUBMISSION_INTERVAL_BLOCKS", uint256(12));
         cfg.l3BlockTime = vm.envOr("KAURAX_BLOCK_TIME", uint256(2));

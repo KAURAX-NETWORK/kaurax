@@ -96,6 +96,21 @@ export const outputOracleAbi = [
       {name: "l2Timestamp", type: "uint256", indexed: false},
     ],
   },
+  {type: "function", name: "PROPOSER_BOND", stateMutability: "view", inputs: [], outputs: [{type: "uint256"}]},
+  {
+    type: "function",
+    name: "isOutputFinalized",
+    stateMutability: "view",
+    inputs: [{name: "l2OutputIndex", type: "uint256"}],
+    outputs: [{type: "bool"}],
+  },
+  {
+    type: "function",
+    name: "proposalProposer",
+    stateMutability: "view",
+    inputs: [{name: "l2OutputIndex", type: "uint256"}],
+    outputs: [{type: "address"}],
+  },
 ] as const;
 
 export const portalAbi = [

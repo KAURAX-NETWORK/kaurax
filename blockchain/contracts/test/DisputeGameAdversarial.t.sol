@@ -16,8 +16,8 @@ contract ReentrantChallenger {
         GAME = _game;
     }
 
-    function open(uint256 outputIndex, address proposer, uint256 bond) external {
-        gameId = GAME.challenge{value: bond}(outputIndex, proposer);
+    function open(uint256 outputIndex, uint256 bond) external {
+        gameId = GAME.challenge{value: bond}(outputIndex);
     }
 
     function bisect(bool lower) external {
@@ -35,17 +35,20 @@ contract ReentrantChallenger {
     }
 }
 
-/// @notice A proposer whose fallback always reverts, to test that a stuck payout is not
-///         silently swallowed.
-contract RejectingProposer {
+/// @notice A challenger whose fallback always reverts, to test that a stuck payout is not
+///         silently swallowed. It is the challenger rather than the proposer because the
+///         proposer is now whoever the oracle recorded, which a test contract cannot be
+///         without proposing.
+contract RejectingChallenger {
     KauraxDisputeGame public immutable GAME;
+    uint256 public gameId;
 
     constructor(KauraxDisputeGame _game) payable {
         GAME = _game;
     }
 
-    function defend(uint256 gameId, bytes32 claim, uint256 bond) external {
-        GAME.defend{value: bond}(gameId, claim);
+    function open(uint256 outputIndex, uint256 bond) external {
+        gameId = GAME.challenge{value: bond}(outputIndex);
     }
 
     receive() external payable {
@@ -68,7 +71,7 @@ contract DisputeGameAdversarialTest is Test {
 
     function setUp() public {
         vm.warp(10_000);
-        oracle = new KauraxL2OutputOracle(10, 2, 0, block.timestamp - 1000, FINALIZATION, proposer, address(this));
+        oracle = new KauraxL2OutputOracle(10, 2, 0, block.timestamp - 1000, FINALIZATION, proposer, address(this), 0);
         game = new KauraxDisputeGame(
             address(oracle), guardian, CHALLENGER_BOND, PROPOSER_BOND, RESPONSE_TIMEOUT, 30 days
         );
@@ -92,7 +95,7 @@ contract DisputeGameAdversarialTest is Test {
     ///      game closed. If this ever fails, a winner can drain the contract.
     function test_reentrantWinnerCannotSettleTwice() public {
         ReentrantChallenger evil = new ReentrantChallenger{value: 10 ether}(game);
-        evil.open(1, proposer, CHALLENGER_BOND);
+        evil.open(1, CHALLENGER_BOND);
 
         vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
         game.resolveTimeout(evil.gameId());
@@ -106,13 +109,13 @@ contract DisputeGameAdversarialTest is Test {
     /// @dev A payout that cannot be delivered must revert rather than be swallowed, or the
     ///      contract quietly keeps someone's money.
     function test_failedPayoutRevertsRatherThanStrandingFunds() public {
-        RejectingProposer stubborn = new RejectingProposer{value: 10 ether}(game);
+        RejectingChallenger stubborn = new RejectingChallenger{value: 10 ether}(game);
+        stubborn.open(1, CHALLENGER_BOND);
 
-        vm.prank(attacker);
-        uint256 id = game.challenge{value: CHALLENGER_BOND}(1, address(stubborn));
-        stubborn.defend(id, keccak256("claim"), PROPOSER_BOND);
-
-        // Challenger walks away; the proposer should win, but cannot receive.
+        // The proposer never defends, so the challenger wins — and cannot be paid.
+        // gameId() is an external call, so it must be read before expectRevert or it
+        // consumes the expectation instead of resolveTimeout.
+        uint256 id = stubborn.gameId();
         vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
         vm.expectRevert(KauraxDisputeGame.TransferFailed.selector);
         game.resolveTimeout(id);
@@ -123,17 +126,17 @@ contract DisputeGameAdversarialTest is Test {
     /// @dev One bond must not be able to tie up a proposer in parallel games.
     function test_cannotOpenParallelGamesOnOneOutput() public {
         vm.prank(attacker);
-        uint256 first = game.challenge{value: CHALLENGER_BOND}(1, proposer);
+        uint256 first = game.challenge{value: CHALLENGER_BOND}(1);
 
         vm.prank(attacker);
         vm.expectRevert(abi.encodeWithSelector(KauraxDisputeGame.GameAlreadyLive.selector, first));
-        game.challenge{value: CHALLENGER_BOND}(1, proposer);
+        game.challenge{value: CHALLENGER_BOND}(1);
     }
 
     /// @dev After a game closes the slot must free, or an output can never be disputed again.
     function test_slotIsReleasedAfterSettlement() public {
         vm.prank(attacker);
-        uint256 id = game.challenge{value: CHALLENGER_BOND}(1, proposer);
+        uint256 id = game.challenge{value: CHALLENGER_BOND}(1);
         vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
         game.resolveTimeout(id);
 
@@ -144,9 +147,9 @@ contract DisputeGameAdversarialTest is Test {
     /// @dev The caller of resolveTimeout must not influence who wins.
     function test_timeoutWinnerDoesNotDependOnCaller() public {
         vm.prank(attacker);
-        uint256 id = game.challenge{value: CHALLENGER_BOND}(1, proposer);
+        uint256 id = game.challenge{value: CHALLENGER_BOND}(1);
         vm.prank(proposer);
-        game.defend{value: PROPOSER_BOND}(id, keccak256("claim"));
+        game.defend(id, keccak256("claim"));
 
         uint256 before = proposer.balance;
         vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
@@ -154,14 +157,15 @@ contract DisputeGameAdversarialTest is Test {
         vm.prank(attacker);
         game.resolveTimeout(id);
 
-        assertEq(proposer.balance, before + CHALLENGER_BOND + PROPOSER_BOND);
+        // This oracle escrows nothing, so the proposer wins only the challenger's bond.
+        assertEq(proposer.balance, before + CHALLENGER_BOND);
     }
 
     // ------------------------------------------------------ authorisation --
 
     function test_guardianCannotResolveAnUnnarrowedGame() public {
         vm.prank(attacker);
-        uint256 id = game.challenge{value: CHALLENGER_BOND}(1, proposer);
+        uint256 id = game.challenge{value: CHALLENGER_BOND}(1);
         vm.prank(guardian);
         vm.expectRevert(KauraxDisputeGame.NotNarrowed.selector);
         game.resolve(id, true, "skipping the game");
@@ -190,13 +194,13 @@ contract DisputeGameAdversarialTest is Test {
 
     function test_movesOnSettledGameRevert() public {
         vm.prank(attacker);
-        uint256 id = game.challenge{value: CHALLENGER_BOND}(1, proposer);
+        uint256 id = game.challenge{value: CHALLENGER_BOND}(1);
         vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);
         game.resolveTimeout(id);
 
         vm.prank(proposer);
         vm.expectRevert();
-        game.defend{value: PROPOSER_BOND}(id, keccak256("late"));
+        game.defend(id, keccak256("late"));
     }
 
     // ------------------------------------------------- economic soundness --
@@ -213,7 +217,7 @@ contract DisputeGameAdversarialTest is Test {
             uint256 idx = oracle.nextOutputIndex() - 1;
 
             vm.prank(attacker);
-            uint256 id = game.challenge{value: CHALLENGER_BOND}(idx, proposer);
+            uint256 id = game.challenge{value: CHALLENGER_BOND}(idx);
             staked += CHALLENGER_BOND;
 
             vm.warp(block.timestamp + RESPONSE_TIMEOUT + 1);

@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {IKauraxL2OutputOracle} from "../interfaces/IKauraxL2OutputOracle.sol";
 import {IForcedInclusion} from "../interfaces/IForcedInclusion.sol";
+import {IKauraxDisputeGame} from "../interfaces/IKauraxDisputeGame.sol";
 import {Types} from "../libraries/Types.sol";
 
 /// @title KauraxL2OutputOracle
@@ -40,11 +41,46 @@ contract KauraxL2OutputOracle is IKauraxL2OutputOracle {
     ///      that is not wired up.
     IForcedInclusion public forcedInclusion;
 
+    /// @notice What a proposer must escrow with every output root.
+    ///
+    /// @dev Escrowed at proposal time rather than when a challenge arrives. The difference
+    ///      matters: a bond posted only on challenge means a root carries no stake until
+    ///      somebody objects, so a proposer that never intends to defend walks away having
+    ///      risked nothing it had already committed.
+    uint256 public immutable PROPOSER_BOND;
+
+    /// @notice The dispute game, consulted before an output is treated as final.
+    ///
+    /// @dev Set after deployment because the game needs this oracle's address at
+    ///      construction. While unset, finalization is the timer alone — which
+    ///      `disputeGameEnforced()` reports rather than implying a guarantee that is not
+    ///      wired up.
+    IKauraxDisputeGame public disputeGame;
+
     Types.OutputProposal[] internal l2Outputs;
+
+    /// @notice Who proposed each output, so a dispute cannot be opened against the wrong
+    ///         party and a bond can be returned to the right one.
+    mapping(uint256 => address) public proposalProposer;
+
+    /// @notice Escrow held against each output index.
+    mapping(uint256 => uint256) public proposalBond;
+
+    /// @notice Bonds owed, withdrawn by their owner rather than pushed.
+    ///
+    /// @dev Pull, not push: a deletion refunds every proposal above the disputed one, and
+    ///      pushing to each in a loop would let a single proposer whose fallback reverts
+    ///      block the deletion entirely.
+    mapping(address => uint256) public withdrawableBond;
 
     event ProposerUpdated(address indexed previous, address indexed current);
     event ChallengerUpdated(address indexed previous, address indexed current);
     event ForcedInclusionUpdated(address indexed previous, address indexed current);
+    event DisputeGameUpdated(address indexed previous, address indexed current);
+    event ProposalBonded(uint256 indexed outputIndex, address indexed proposer, uint256 amount);
+    event ProposalBondForfeited(uint256 indexed outputIndex, address indexed to, uint256 amount);
+    event ProposalBondRefunded(uint256 indexed outputIndex, address indexed proposer, uint256 amount);
+    event BondWithdrawn(address indexed to, uint256 amount);
 
     error NotProposer();
     error NotChallenger();
@@ -58,6 +94,11 @@ contract KauraxL2OutputOracle is IKauraxL2OutputOracle {
     error CannotDeleteFinalized();
     error InvalidStartingConfig();
     error ForcedTransactionOverdue(uint256 deadlineL2Block, uint256 currentL2Block);
+    error WrongProposerBond(uint256 expected, uint256 got);
+    error OutputNotFinalized();
+    error NothingToWithdraw();
+    error BondTransferFailed();
+    error OutputStillLive();
 
     modifier onlyProposer() {
         if (msg.sender != proposer) revert NotProposer();
@@ -71,7 +112,8 @@ contract KauraxL2OutputOracle is IKauraxL2OutputOracle {
         uint256 _startingTimestamp,
         uint256 _finalizationPeriodSeconds,
         address _proposer,
-        address _challenger
+        address _challenger,
+        uint256 _proposerBond
     ) {
         if (_submissionInterval == 0 || _l3BlockTime == 0) {
             revert InvalidStartingConfig();
@@ -84,6 +126,7 @@ contract KauraxL2OutputOracle is IKauraxL2OutputOracle {
         STARTING_BLOCK_NUMBER = _startingBlockNumber;
         STARTING_TIMESTAMP = _startingTimestamp;
         FINALIZATION_PERIOD_SECONDS = _finalizationPeriodSeconds;
+        PROPOSER_BOND = _proposerBond;
         proposer = _proposer;
         challenger = _challenger;
     }
@@ -101,6 +144,9 @@ contract KauraxL2OutputOracle is IKauraxL2OutputOracle {
         uint256 _l2BlockNumber
     ) external payable onlyProposer {
         if (_outputRoot == bytes32(0)) revert InvalidOutputRoot();
+
+        // The stake goes up with the claim, not with the objection to it.
+        if (msg.value != PROPOSER_BOND) revert WrongProposerBond(PROPOSER_BOND, msg.value);
 
         // Censoring a user costs the sequencer its ability to settle. If a forced
         // transaction has gone unacknowledged past its deadline, no further state
@@ -123,7 +169,14 @@ contract KauraxL2OutputOracle is IKauraxL2OutputOracle {
             if (blockhash(_l2BlockNumber) != _l2BlockHash) revert L2BlockHashMismatch();
         }
 
-        emit OutputProposed(_outputRoot, nextOutputIndex(), _l3BlockNumber, block.timestamp);
+        uint256 index = nextOutputIndex();
+        emit OutputProposed(_outputRoot, index, _l3BlockNumber, block.timestamp);
+
+        proposalProposer[index] = msg.sender;
+        if (msg.value > 0) {
+            proposalBond[index] = msg.value;
+            emit ProposalBonded(index, msg.sender, msg.value);
+        }
 
         l2Outputs.push(
             Types.OutputProposal({
@@ -134,21 +187,105 @@ contract KauraxL2OutputOracle is IKauraxL2OutputOracle {
         );
     }
 
-    /// @notice Challenger backstop: remove proposals from `_l2OutputIndex` onward.
-    /// @dev Only unfinalized proposals may be deleted; a finalized withdrawal must not be
-    ///      retroactively invalidated.
+    /// @notice Is this output settled — past its window and not under dispute?
+    ///
+    /// @dev The timer alone is not enough. An output whose challenge is still being played
+    ///      must not finalize underneath the game: a challenger could win and find the
+    ///      commitment already spent against. So a live game holds finalization open, and
+    ///      that is what makes the dispute game worth playing at all.
+    function isOutputFinalized(uint256 _l2OutputIndex) public view returns (bool) {
+        if (_l2OutputIndex >= l2Outputs.length) return false;
+        if (l2Outputs[_l2OutputIndex].timestamp + FINALIZATION_PERIOD_SECONDS >= block.timestamp) {
+            return false;
+        }
+        IKauraxDisputeGame game = disputeGame;
+        if (address(game) != address(0) && game.hasLiveGame(_l2OutputIndex)) return false;
+        return true;
+    }
+
+    /// @notice Whether a dispute game is wired in. False means finalization is the timer
+    ///         alone, which is stated rather than implied.
+    function disputeGameEnforced() external view returns (bool) {
+        return address(disputeGame) != address(0);
+    }
+
+    /// @notice Remove proposals from `_l2OutputIndex` onward, and settle their bonds.
+    ///
+    /// @dev Callable only by `challenger`, which in a configured deployment is the dispute
+    ///      game — so deleting a state commitment is the outcome of a played game rather
+    ///      than the act of a single key.
+    ///
+    ///      Bond accounting, and why it is split:
+    ///        - the disputed output's bond is credited to the caller, which is the game;
+    ///          it pays the challenger who was right.
+    ///        - every later output is deleted as a consequence, not as a judgement. Those
+    ///          proposals were never adjudicated, so their bonds are credited back to their
+    ///          proposers.
+    ///
+    ///      Both are credited, not transferred. The loop is bounded by the number of
+    ///      unfinalized outputs, which is the finalization period divided by the submission
+    ///      interval — small by construction.
     function deleteL2Outputs(uint256 _l2OutputIndex) external {
         if (msg.sender != challenger) revert NotChallenger();
         if (_l2OutputIndex >= l2Outputs.length) revert OutputIndexOutOfBounds();
-        if (l2Outputs[_l2OutputIndex].timestamp + FINALIZATION_PERIOD_SECONDS < block.timestamp) {
-            revert CannotDeleteFinalized();
-        }
+        if (isOutputFinalized(_l2OutputIndex)) revert CannotDeleteFinalized();
 
         uint256 prevNext = l2Outputs.length;
+
+        for (uint256 i = _l2OutputIndex; i < prevNext; i++) {
+            uint256 bond = proposalBond[i];
+            if (bond > 0) {
+                proposalBond[i] = 0;
+                if (i == _l2OutputIndex) {
+                    withdrawableBond[msg.sender] += bond;
+                    emit ProposalBondForfeited(i, msg.sender, bond);
+                } else {
+                    address who = proposalProposer[i];
+                    withdrawableBond[who] += bond;
+                    emit ProposalBondRefunded(i, who, bond);
+                }
+            }
+            // Cleared because deletion frees the index for reuse, and a stale record would
+            // then describe a different proposal.
+            delete proposalProposer[i];
+        }
+
         assembly {
             sstore(l2Outputs.slot, _l2OutputIndex)
         }
         emit OutputsDeleted(prevNext, _l2OutputIndex);
+    }
+
+    /// @notice Reclaim the escrow behind an output that survived its challenge window.
+    function claimProposalBond(uint256 _l2OutputIndex) external {
+        if (!isOutputFinalized(_l2OutputIndex)) revert OutputNotFinalized();
+        if (msg.sender != proposalProposer[_l2OutputIndex]) revert NotProposer();
+
+        uint256 bond = proposalBond[_l2OutputIndex];
+        if (bond == 0) revert NothingToWithdraw();
+        proposalBond[_l2OutputIndex] = 0;
+        withdrawableBond[msg.sender] += bond;
+        emit ProposalBondRefunded(_l2OutputIndex, msg.sender, bond);
+    }
+
+    /// @notice Withdraw everything credited to the caller.
+    /// @dev Balance zeroed before the transfer; a failed transfer reverts rather than being
+    ///      swallowed, so a bond is never silently kept.
+    function withdrawBond() external {
+        uint256 amount = withdrawableBond[msg.sender];
+        if (amount == 0) revert NothingToWithdraw();
+        withdrawableBond[msg.sender] = 0;
+
+        (bool ok,) = payable(msg.sender).call{value: amount}("");
+        if (!ok) revert BondTransferFailed();
+        emit BondWithdrawn(msg.sender, amount);
+    }
+
+    /// @notice Wire in the dispute game. Challenger-only, matching setForcedInclusion.
+    function setDisputeGame(address _game) external {
+        if (msg.sender != challenger) revert NotChallenger();
+        emit DisputeGameUpdated(address(disputeGame), _game);
+        disputeGame = IKauraxDisputeGame(_game);
     }
 
     function getL2Output(uint256 _l2OutputIndex) external view returns (Types.OutputProposal memory) {

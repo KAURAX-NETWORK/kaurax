@@ -46,7 +46,7 @@ contract BridgeTest is Test {
     function setUp() public {
         vm.warp(10_000);
         oracle =
-            new KauraxL2OutputOracle(10, 2, 1, block.timestamp - 1000, FINALIZATION, proposer, challenger);
+            new KauraxL2OutputOracle(10, 2, 1, block.timestamp - 1000, FINALIZATION, proposer, challenger, 0);
         portal = new KauraxPortal(address(oracle), guardian, sequencerAddress, FORCED_WINDOW);
         passer = new L3ToL2MessagePasser();
 

@@ -181,6 +181,18 @@ contract KauraxDisputeGame {
         MAX_GAME_DURATION = _maxGameDuration;
     }
 
+    /// @notice Accepts the escrow the oracle forwards when a disputed output is deleted.
+    ///
+    /// @dev Without this the oracle's transfer reverts, `withdrawBond` fails, and the
+    ///      forfeited escrow stays credited to this contract inside the oracle while the
+    ///      challenger is paid only its own bond — a silent loss that the balance
+    ///      assertions in the tests caught.
+    ///
+    ///      Deliberately not a general deposit route: value that arrives here is only ever
+    ///      forwarded to a game's winner, and every terminal path asserts the contract
+    ///      holds nothing afterwards.
+    receive() external payable {}
+
     modifier onlyGuardian() {
         if (msg.sender != guardian) revert NotGuardian();
         _;
@@ -190,12 +202,14 @@ contract KauraxDisputeGame {
 
     /// @notice Challenge an output root. Anyone may do this; the bond is the only gate.
     /// @param _outputIndex The disputed proposal.
-    /// @param _proposer The address that will be held to answer. Recorded explicitly rather
-    ///        than read from the oracle, because the oracle does not store who proposed —
-    ///        and a game must name its parties for the bonds to mean anything.
-    function challenge(uint256 _outputIndex, address _proposer) external payable returns (uint256 gameId) {
-        if (_proposer == address(0)) revert ZeroAddress();
+    /// @dev The proposer is read from the oracle, not supplied by the caller. Taking it as
+    ///      a parameter let a challenger name someone who had proposed nothing, and bind
+    ///      them to a game they had no reason to watch.
+    function challenge(uint256 _outputIndex) external payable returns (uint256 gameId) {
         if (msg.value != CHALLENGER_BOND) revert WrongBond(CHALLENGER_BOND, msg.value);
+
+        address _proposer = ORACLE.proposalProposer(_outputIndex);
+        if (_proposer == address(0)) revert ZeroAddress();
 
         uint256 existing = liveGameOfOutput[_outputIndex];
         if (existing != 0) revert GameAlreadyLive(existing - 1);
@@ -205,9 +219,11 @@ contract KauraxDisputeGame {
 
         // Once an output has finalized, withdrawals may already have settled against it.
         // Unwinding that is not something a dispute can do, so it is not offered.
-        if (proposal.timestamp + ORACLE.finalizationPeriodSeconds() <= block.timestamp) {
-            revert OutputAlreadyFinalized();
-        }
+        //
+        // Opening a game also holds finalization open: the oracle asks hasLiveGame() before
+        // treating an output as final, so the window cannot close underneath a game that is
+        // still being played. That is what makes winning one worth anything.
+        if (ORACLE.isOutputFinalized(_outputIndex)) revert OutputAlreadyFinalized();
 
         // The range under dispute is the span this proposal commits to: the block after the
         // previous proposal, through this one's block.
@@ -241,26 +257,14 @@ contract KauraxDisputeGame {
     // ------------------------------------------------------------- bisection --
 
     /// @notice The proposer answers with its claimed state root at the midpoint.
-    /// @dev The proposer posts its bond on the first move rather than at proposal time.
-    ///      That is a deliberate trade-off, and it is a weaker one: it means an output root
-    ///      carries no stake until someone objects, so a proposer who never intends to
-    ///      defend simply walks away and loses nothing it had already committed. It is done
-    ///      this way because the oracle does not currently escrow anything at proposal time,
-    ///      and changing that is a change to the settlement contract's economics. The
-    ///      abandonment path below is what makes walking away still cost them the output.
-    function defend(uint256 _gameId, bytes32 _midClaim) external payable {
+    /// @dev No bond is collected here. The proposer's stake was escrowed by the oracle when
+    ///      the output was proposed, so a root carries risk from the moment it is committed
+    ///      rather than from the moment somebody objects.
+    function defend(uint256 _gameId, bytes32 _midClaim) external {
         Game storage g = _game(_gameId);
         if (msg.sender != g.proposer) revert NotProposer();
         if (g.status != Status.PROPOSER_TURN) revert WrongTurn(Status.PROPOSER_TURN, g.status);
         _requireLive(g);
-
-        // Only on the first move; afterwards the bond is already held.
-        if (g.proposerBond == 0) {
-            if (msg.value != PROPOSER_BOND) revert WrongBond(PROPOSER_BOND, msg.value);
-            g.proposerBond = msg.value;
-        } else if (msg.value != 0) {
-            revert WrongBond(0, msg.value);
-        }
 
         g.midClaim = _midClaim;
         g.deadline = uint64(block.timestamp) + RESPONSE_TIMEOUT;
@@ -332,11 +336,11 @@ contract KauraxDisputeGame {
 
         if (_challengerWasRight) {
             g.status = Status.RESOLVED_CHALLENGER_WINS;
-            _settle(_gameId, g, g.challenger, g.proposer, _reason);
-            _deleteOrReport(_gameId, g.outputIndex);
+            uint256 recovered = _deleteAndRecover(_gameId, g.outputIndex);
+            _settle(_gameId, g, g.challenger, g.proposer, _reason, recovered);
         } else {
             g.status = Status.RESOLVED_PROPOSER_WINS;
-            _settle(_gameId, g, g.proposer, g.challenger, _reason);
+            _settle(_gameId, g, g.proposer, g.challenger, _reason, 0);
         }
     }
 
@@ -354,12 +358,12 @@ contract KauraxDisputeGame {
         if (g.status == Status.PROPOSER_TURN) {
             // The proposer would not defend its own claim. Treat that as conceding it.
             g.status = Status.RESOLVED_TIMEOUT;
-            _settle(_gameId, g, g.challenger, g.proposer, "proposer abandoned the game");
-            _deleteOrReport(_gameId, g.outputIndex);
+            uint256 recovered = _deleteAndRecover(_gameId, g.outputIndex);
+            _settle(_gameId, g, g.challenger, g.proposer, "proposer abandoned the game", recovered);
         } else if (g.status == Status.CHALLENGER_TURN) {
             // The challenger stopped narrowing. The claim stands.
             g.status = Status.RESOLVED_TIMEOUT;
-            _settle(_gameId, g, g.proposer, g.challenger, "challenger abandoned the game");
+            _settle(_gameId, g, g.proposer, g.challenger, "challenger abandoned the game", 0);
         } else if (g.status == Status.AWAITING_RESOLUTION) {
             // The guardian did not act within the window.
             //
@@ -391,9 +395,14 @@ contract KauraxDisputeGame {
 
     /// @dev Pays the winner both bonds. State is written before any transfer, and the
     ///      settled flag is set first, so a re-entrant call finds the game already settled.
-    function _settle(uint256 _gameId, Game storage g, address _winner, address _loser, string memory _reason)
-        internal
-    {
+    function _settle(
+        uint256 _gameId,
+        Game storage g,
+        address _winner,
+        address _loser,
+        string memory _reason,
+        uint256 _recoveredEscrow
+    ) internal {
         g.bondsSettled = true;
         delete liveGameOfOutput[g.outputIndex];
 
@@ -405,7 +414,7 @@ contract KauraxDisputeGame {
         emit GameResolved(_gameId, g.status, _winner, _reason);
         if (loserBond > 0) emit BondSlashed(_gameId, _loser, loserBond, _winner);
 
-        uint256 payout = winnerBond + loserBond;
+        uint256 payout = winnerBond + loserBond + _recoveredEscrow;
         if (payout > 0) {
             _pay(_gameId, _winner, payout);
         }
@@ -418,13 +427,36 @@ contract KauraxDisputeGame {
     ///      of a challenger who was right. Instead the settlement stands and the failure is
     ///      announced, which is the honest outcome: the challenger is paid, and the record
     ///      shows a commitment that survived a dispute it should have lost.
-    function _deleteOrReport(uint256 _gameId, uint256 _outputIndex) internal {
+    /// @dev Deletes the disputed output and collects the escrow the oracle credits for it.
+    ///      Runs before settlement so the winner is paid once, in full.
+    /// @return recovered The proposer's escrow, or zero if there was none.
+    function _deleteAndRecover(uint256 _gameId, uint256 _outputIndex) internal returns (uint256 recovered) {
+        uint256 before = address(this).balance;
         try ORACLE.deleteL2Outputs(_outputIndex) {
-            // Removed.
+            // Deletion credits this contract with the disputed proposal's escrow. Pull it
+            // rather than leaving it in the oracle under this address, where nobody would
+            // think to look.
+            try ORACLE.withdrawBond() {
+                recovered = address(this).balance - before;
+            } catch {
+                // Nothing credited: the proposal carried no escrow, which is the devnet
+                // default and not an error.
+            }
         } catch {
+            // The output finalized while the game ran, so it can no longer be removed. The
+            // challenger is still paid its own bond; the record shows what happened.
             emit DisputeOutlivedFinalization(_gameId, _outputIndex);
         }
     }
+
+    /// @notice True while an unsettled game exists for this output.
+    /// @dev The oracle calls this before treating an output as final.
+    function hasLiveGame(uint256 _outputIndex) external view returns (bool) {
+        uint256 slot = liveGameOfOutput[_outputIndex];
+        if (slot == 0) return false;
+        return !games[slot - 1].bondsSettled;
+    }
+
 
     function _refundBoth(uint256 _gameId, Game storage g, string memory _reason) internal {
         g.bondsSettled = true;

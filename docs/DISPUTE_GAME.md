@@ -127,21 +127,26 @@ right. This is the fault-proof gap and nothing here closes it.
 instruction and executes it on chain. Doing that needs execution trace commitments, which do
 not exist. See [FAULT_PROOF_SPEC.md](FAULT_PROOF_SPEC.md).
 
-**3. A dispute can outlive the finalization window.** The oracle finalizes on a timer that a
-live dispute does not pause. A long game can therefore end after its output has finalized,
-at which point deletion is impossible. The contract handles this rather than reverting: the
-challenger is still paid, and `DisputeOutlivedFinalization` is emitted so the record shows a
-commitment that survived a dispute it should have lost.
+**3. ~~A dispute can outlive the finalization window.~~ FIXED.** `isOutputFinalized` now asks
+the game whether a dispute is live, and the portal refuses to finalize a withdrawal against
+an output that is not settled. So the window cannot close underneath a game being played,
+and a challenger who wins does not find the funds already gone. Verified by
+`test_liveGameHoldsFinalizationOpenPastTheTimer` and
+`test_settlingTheGameReleasesFinalization` — both halves, because holding the window open
+without releasing it would freeze an output forever.
 
-The correct fix is for the oracle to refuse to finalize an output with a live game. That is
-a change to the settlement contract's finalization rule, which the portal's withdrawal path
-also depends on, so it is deliberately not made as a side effect of adding this contract. It
-is the first item in the roadmap below.
+The `DisputeOutlivedFinalization` path remains for deployments where the oracle has no game
+wired in, where finalization is still the timer alone.
 
-**4. The proposer bonds on its first move, not at proposal time.** So an output root carries
-no stake until someone objects, and a proposer who never intends to defend walks away
-without losing anything it had already committed. The abandonment rule means it still loses
-the output. Escrowing at proposal time would be better and requires changing the oracle.
+**4. ~~The proposer bonds on its first move.~~ FIXED.** The oracle escrows `PROPOSER_BOND`
+at proposal time, so a root carries risk from the moment it is committed. On a challenger
+win the escrow is forfeited to them; proposals deleted as collateral are refunded to their
+proposers, because they were never adjudicated. The proposer reclaims its escrow once the
+output finalizes.
+
+A consequence worth naming: the challenger no longer names the proposer. It is read from the
+oracle, which recorded it. Previously a challenger could bind an arbitrary address to a game
+it had no reason to watch.
 
 **5. One live game per output.** Necessary — otherwise one attacker bond forces the proposer
 to defend many games at once and lose on whichever it cannot reach
@@ -152,10 +157,9 @@ and abandons it delays the next challenger by one timeout period.
 
 ## Roadmap
 
-1. Oracle refuses to finalize an output with a live dispute (fixes limitation 3)
-2. Proposer bond escrowed at proposal time (fixes limitation 4)
+1. ~~Oracle refuses to finalize an output with a live dispute~~ — done
+2. ~~Proposer bond escrowed at proposal time~~ — done
 3. Trace commitments, so bisection reaches an instruction (limitation 2)
 4. One-step verifier, replacing `resolve` (limitation 1)
 
-Step 4 is the only one that makes KAURAX trustless, and it is the largest. Steps 1 and 2 are
-small and should happen before any public testnet carries value.
+Step 4 is the only one that makes KAURAX trustless, and it is the largest.

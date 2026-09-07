@@ -126,6 +126,7 @@ contract KauraxPortal is IKauraxPortal, IForcedInclusion {
     error WithdrawalAlreadyFinalized();
     error ChallengePeriodNotElapsed();
     error ProposalReplaced();
+    error OutputNotFinalized();
     error ReentrantFinalize();
     error TargetIsPortal();
     error AlreadyProvenAtSameRoot();
@@ -368,10 +369,19 @@ contract KauraxPortal is IKauraxPortal, IForcedInclusion {
         uint256 window = OUTPUT_ORACLE.finalizationPeriodSeconds();
         if (block.timestamp < uint256(proven.timestamp) + window) revert ChallengePeriodNotElapsed();
 
-        // The proposal proven against must still be the live one. If the challenger
-        // deleted or replaced it, the withdrawal must be re-proven.
+        // The proposal proven against must still be the live one. If it was deleted or
+        // replaced, the withdrawal must be re-proven.
         Types.OutputProposal memory current = OUTPUT_ORACLE.getL2Output(uint256(proven.l2OutputIndex));
         if (current.outputRoot != proven.outputRoot) revert ProposalReplaced();
+
+        // And the proposal must actually be settled, which is not the same as the
+        // withdrawal's own challenge period having elapsed. An output with a live dispute
+        // is not settled: paying out against it would let a withdrawal complete while the
+        // commitment it rests on is still being contested, and a challenger who then wins
+        // would find the funds already gone.
+        if (!OUTPUT_ORACLE.isOutputFinalized(uint256(proven.l2OutputIndex))) {
+            revert OutputNotFinalized();
+        }
 
         // Effects before interaction.
         finalizedWithdrawals[withdrawalHash] = true;

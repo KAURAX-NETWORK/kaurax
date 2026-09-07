@@ -15,7 +15,7 @@ written during this work; two were live outages I caused and fixed.
 |---|---|---|
 | CRITICAL | 0 | 0 |
 | HIGH | 3 | 3 |
-| MEDIUM | 5 | 4 |
+| MEDIUM | 5 | 2 |
 | LOW | 4 | 3 |
 | INFORMATIONAL | 3 | 2 |
 
@@ -65,8 +65,8 @@ dispute contracts have never been read by an independent party.
 
 ## MEDIUM
 
-### M-1 — A dispute can outlive the finalization window
-**Open. Handled, not solved.**
+### M-1 — A dispute could outlive the finalization window
+**Fixed.**
 
 The oracle finalizes on a timer that a live dispute does not pause. A game that runs past
 that point ends with the output already finalized and undeletable. The game pays the
@@ -76,18 +76,20 @@ bond, but the wrong commitment survives.
 *Found by:* `test_cannotTimeoutTwice` failing with `CannotDeleteFinalized` during
 development.
 
-*Fix:* the oracle must refuse to finalize an output with a live game. Not done here because
-it changes the finalization rule the portal's withdrawal path also reads, and that deserves
-its own change and its own tests.
+*Fix applied:* `isOutputFinalized` consults the dispute game, and the portal refuses to
+finalize a withdrawal against an unsettled output — the second half matters, because the
+portal gates on the *proof's* age, so without it a withdrawal could complete against a
+commitment still under dispute.
 
-### M-2 — Proposer bonds late
-**Open.**
+### M-2 — Proposer bonded late
+**Fixed.**
 
 The proposer stakes on its first defence, not at proposal time, so an output root carries no
 stake until challenged. A proposer that never intends to defend loses only the output.
 
-*Fix:* escrow at proposal time. `proposeL2Output` is already `payable`, so the plumbing
-exists.
+*Fix applied:* the oracle escrows `PROPOSER_BOND` at proposal time. Forfeited to the
+challenger on a loss; refunded to the proposer when the output finalizes; refunded to
+proposers of outputs deleted as collateral, which were never adjudicated.
 
 ### M-3 — Operator keys held locally on the devnet
 **Open.**
