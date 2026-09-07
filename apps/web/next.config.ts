@@ -17,12 +17,29 @@ import type {NextConfig} from "next";
  * form is deliberately NOT used: Vercel allocates it globally first-come, and
  * kaurax-docs.vercel.app already belonged to someone else's project.
  */
+// The node's public origin. Overridable so a redeploy can follow the server without a
+// code change; the default is the current devnet host.
+const UPSTREAM = process.env.KAURAX_UPSTREAM_ORIGIN ?? "http://87.58.152.42:8880";
+
 const config: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ["@kaurax/ui", "@kaurax/types"],
 
   async rewrites() {
     return [
+      // The chain and the backend API are reached through this origin rather than directly.
+      //
+      // Not a convenience: the frontends are served over HTTPS and the node currently
+      // answers over plain HTTP, and a browser refuses to let an HTTPS page make an HTTP
+      // request at all. Proxying here turns it into a server-to-server call, so the browser
+      // only ever sees same-origin HTTPS.
+      //
+      // KAURAX_UPSTREAM_ORIGIN points at the node. Once rpc.kaurax.network exists with a
+      // certificate, this can point at that instead, or be removed entirely.
+      {source: "/rpc", destination: `${UPSTREAM}/`},
+      {source: "/rpc/:path*", destination: `${UPSTREAM}/:path*`},
+      {source: "/api/:path*", destination: `${UPSTREAM}/api/:path*`},
+
     {source: "/explorer", destination: "https://kaurax-explorer-kmks-projects.vercel.app/explorer"},
     {source: "/explorer/:path*", destination: "https://kaurax-explorer-kmks-projects.vercel.app/explorer/:path*"},
     {source: "/wallet", destination: "https://kaurax-wallet-kmks-projects.vercel.app/wallet"},

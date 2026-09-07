@@ -1,10 +1,13 @@
 /**
  * The KAURAX application shell — one header and footer across every app in the suite.
  *
- * Each app is a separate Vercel deployment on its own subdomain, so cross-app navigation
- * is absolute URLs built from NEXT_PUBLIC_KAURAX_DOMAIN. Locally, where every app runs on
- * a different localhost port, the same map falls back to those ports so the suite is
- * navigable in development too.
+ * Each app is a separate deployment, but they are served to the public as Next.js zones
+ * under one domain — kaurax.network/explorer, /pay, /swap and so on. Cross-app navigation
+ * is therefore a plain path, which keeps the links working no matter which zone rendered
+ * the page and survives the domain changing.
+ *
+ * Locally each app runs on its own port, so the same map falls back to an absolute
+ * localhost URL including the zone's basePath.
  */
 export type AppKey =
   | "web"
@@ -40,9 +43,11 @@ export const APPS: AppDef[] = [
 ];
 
 function urlFor(app: AppDef, domain: string | undefined): string {
-  // No domain configured means local development: address each app by its port.
-  if (!domain) return `http://localhost:${app.devPort}`;
-  return app.subdomain ? `https://${app.subdomain}.${domain}` : `https://${domain}`;
+  const path = app.subdomain ? `/${app.subdomain}` : "/";
+  // No domain configured means local development: each app is on its own port, and still
+  // behind its basePath, so the prefix belongs in the URL there too.
+  if (!domain) return `http://localhost:${app.devPort}${app.subdomain ? path : ""}`;
+  return path;
 }
 
 export function AppShell({
