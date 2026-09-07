@@ -88,5 +88,38 @@ for path in / /explorer /swap /wallet; do
 done
 [ "$leak" -eq 0 ] && ok "no localhost references in any page checked"
 
+# ------------------------------------------------- server-rendered errors --
+# The check that was missing. Fetching a URL from a laptop exercises the edge; it does not
+# exercise the server-to-server path a deployed function takes. When that path broke, every
+# page still returned 200 with a polite error rendered inside it — so the only way to see
+# the failure is to read what the page says.
+printf '\n%sPages rendered data, not an error%s\n' "$BOLD" "$RESET"
+for path in / /explorer /wallet /swap /names /launchpad /pay /bridge; do
+  body="$(curl -sL --max-time 30 "$BASE$path" 2>/dev/null)"
+  if printf '%s' "$body" | grep -qiE "could not reach the kaurax api|not reachable"; then
+    bad "$path rendered an API-unreachable message"
+  elif printf '%s' "$body" | grep -q "could not be found"; then
+    bad "$path rendered a 404 inside the app"
+  else
+    ok "$path rendered without an error message"
+  fi
+done
+
+# ------------------------------------------------------- explorer routing --
+printf '\n%sExplorer navigation resolves%s\n' "$BOLD" "$RESET"
+for path in /explorer /explorer/blocks /explorer/transactions /explorer/contracts \
+            /explorer/tokens /explorer/validators /explorer/network /explorer/dashboard; do
+  body="$(curl -sL --max-time 30 "$BASE$path" 2>/dev/null)"
+  printf '%s' "$body" | grep -q "could not be found" \
+    && bad "$path is a 404" \
+    || ok "$path resolves"
+done
+
+# Links must carry the basePath, or every click from a listing lands at the domain root.
+nav="$(curl -sL --max-time 30 "$BASE/explorer" 2>/dev/null | grep -oE 'href="/[a-z]+"' | sort -u)"
+printf '%s' "$nav" | grep -qE 'href="/(blocks|transactions|tokens)"' \
+  && bad "explorer emits unprefixed links; they will 404" \
+  || ok "explorer links carry the /explorer prefix"
+
 printf '\n%s%d passed, %d failed%s\n' "$BOLD" "$PASS" "$FAIL" "$RESET"
 [ "$FAIL" -eq 0 ]

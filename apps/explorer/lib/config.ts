@@ -28,6 +28,14 @@ export const config = {
   l2RpcUrl: process.env.NEXT_PUBLIC_L2_RPC_URL ?? "http://127.0.0.1:9545",
   l1RpcUrl: process.env.NEXT_PUBLIC_L1_RPC_URL ?? "http://127.0.0.1:8545",
   explorerUrl: process.env.NEXT_PUBLIC_EXPLORER_URL ?? "http://127.0.0.1:3000",
+  /**
+   * Where this app reaches the KAURAX API. Server-side it goes straight to the node rather
+   * than back out through this site's own domain; see the note on l3FetchUrl.
+   */
+  apiFetchUrl:
+    typeof window === "undefined"
+      ? SERVER_RPC_ORIGIN
+      : (process.env.NEXT_PUBLIC_KAURAX_API_URL ?? "http://127.0.0.1:4000"),
 } as const;
 
 export const PREDEPLOYS = {
