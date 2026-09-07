@@ -47,7 +47,7 @@ export default async function Home() {
             data to an underlying Layer-2, and inherits settlement from Ethereum through it.
           </p>
           <div className="row-gap" style={{marginTop: 26}}>
-            <a className="badge accent" href={`https://docs.${config.domain || "kaurax.com"}`} style={{padding: "10px 18px", fontSize: 13}}>
+            <a className="badge accent" href="/docs" style={{padding: "10px 18px", fontSize: 13}}>
               Read the docs
             </a>
             <a className="badge" href={config.explorerUrl} style={{padding: "10px 18px", fontSize: 13}}>
