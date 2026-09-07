@@ -27,7 +27,7 @@ async function call<T>(url: string, method: string, params: unknown[] = []): Pro
   }
 }
 
-export const l3 = <T>(method: string, params: unknown[] = []) => call<T>(config.l3RpcUrl, method, params);
+export const l3 = <T>(method: string, params: unknown[] = []) => call<T>(config.l3FetchUrl, method, params);
 export const l2 = <T>(method: string, params: unknown[] = []) => call<T>(config.l2RpcUrl, method, params);
 export const l1 = <T>(method: string, params: unknown[] = []) => call<T>(config.l1RpcUrl, method, params);
 
