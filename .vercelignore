@@ -1,27 +1,31 @@
-# What Vercel does NOT need.
+# What Vercel does NOT need in the upload.
 #
-# Careful: services/, tests/ and blockchain/l3 are pnpm workspace members. Excluding them
-# breaks `pnpm install` at the root, because the lockfile expects their package.json to be
-# there. They stay — they are only source, and they are small.
+# Two traps are baked into this file's history, both worth keeping in mind:
 #
-# What actually made the upload 54 MB was the git history, the Foundry artifacts and the
-# devnet state. Those go.
+#  1. services/, tests/ and blockchain/l3 are pnpm workspace members. Excluding them breaks
+#     `pnpm install` at the root, because the lockfile expects their package.json to exist.
+#     They stay — they are source only, and small.
+#
+#  2. A bare `docs` pattern matches at every depth, so it excluded apps/docs as well as the
+#     top-level docs/. The build then failed with "No package found with name
+#     '@kaurax/app-docs' in workspace", which points nowhere near the actual cause.
+#     Anything meant to be root-only is anchored with a leading slash.
+#
+# docs/ itself is NOT excluded: apps/docs renders the repository's own documentation rather
+# than keeping a second copy of it.
 
-.git
-.github
-.devnet
-.turbo
-docs
-infra
-blockchain/contracts/lib
-blockchain/contracts/out
-blockchain/contracts/cache
-blockchain/contracts/broadcast
+/.git
+/.github
+/.devnet
+/.turbo
+/blockchain/contracts/lib
+/blockchain/contracts/out
+/blockchain/contracts/cache
+/blockchain/contracts/broadcast
+
 node_modules
-**/node_modules
-**/.next
-**/dist
-**/.turbo
+.next
+dist
 *.log
 *.tar.zst
 coverage

@@ -6,14 +6,13 @@
 # next steps. It does NOT install anything on the server — infra/scripts/bootstrap.sh
 # does that, over SSH, once the machine exists.
 #
-# Credentials: upctl reads UPCLOUD_USERNAME and UPCLOUD_PASSWORD from the environment.
-# These are UpCloud *API* credentials — created under Account -> API in the control panel,
-# with API access enabled and, ideally, this machine's IP allow-listed. They are not your
-# UpCloud login. This script never writes them anywhere.
+# Credentials come from the environment and are never written anywhere by this script.
 #
-#   export UPCLOUD_USERNAME=...
-#   export UPCLOUD_PASSWORD=...
+#   export UPCLOUD_TOKEN=ucat_...          # Account -> Tokens in the control panel
 #   infra/scripts/ops/provision-upcloud.sh --plan 4xCPU-8GB --zone de-fra1
+#
+# Username/password API credentials also work, but are subject to a source-IP allow-list:
+#   export UPCLOUD_USERNAME=... UPCLOUD_PASSWORD=...
 #
 #   --dry-run   show what would be created and stop
 set -uo pipefail
@@ -56,8 +55,16 @@ done
 
 command -v upctl >/dev/null 2>&1 || die "upctl is not installed. See https://github.com/UpCloudLtd/upcloud-cli"
 
-[ -n "${UPCLOUD_USERNAME:-}" ] || die "UPCLOUD_USERNAME is not set (UpCloud API credentials, not your login)."
-[ -n "${UPCLOUD_PASSWORD:-}" ] || die "UPCLOUD_PASSWORD is not set."
+# Two ways to authenticate. A token is preferred: it is scoped, revocable from the control
+# panel without changing a password, and not subject to the API's source-IP allow-list that
+# username/password auth enforces.
+if [ -n "${UPCLOUD_TOKEN:-}" ]; then
+  :
+elif [ -n "${UPCLOUD_USERNAME:-}" ] && [ -n "${UPCLOUD_PASSWORD:-}" ]; then
+  :
+else
+  die "Set UPCLOUD_TOKEN (preferred), or UPCLOUD_USERNAME and UPCLOUD_PASSWORD."
+fi
 
 # An SSH key is not optional: the server is created with password auth disabled, because a
 # public IP running a blockchain node will see credential-stuffing within the hour.
@@ -73,7 +80,7 @@ echo
 
 if [ "$DRY" -eq 1 ]; then warn "dry run — nothing created"; exit 0; fi
 
-upctl account show >/dev/null 2>&1 || die "UpCloud rejected these credentials. Check API access is enabled for this user."
+upctl account show >/dev/null 2>&1 || die "UpCloud rejected these credentials."
 ok "credentials accepted"
 
 if upctl server list --output json 2>/dev/null | grep -q "\"hostname\": \"$HOSTNAME_\""; then
@@ -92,9 +99,25 @@ else
   ok "server created"
 fi
 
-IP="$(upctl server show "$HOSTNAME_" --output json 2>/dev/null \
-  | grep -oE '"address": "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"' | head -1 | grep -oE '[0-9.]+')"
-[ -n "$IP" ] || die "could not read the server's public IP"
+# A server has several addresses: a public IPv4, a public IPv6, and a *utility* IPv4 on
+# UpCloud's private network. Taking the first match returns the utility address (10.x),
+# which is not reachable from anywhere you care about — so select on access == "public".
+IP="$(upctl server show "$HOSTNAME_" --output json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+def walk(node):
+    if isinstance(node, dict):
+        if node.get("access") == "public" and node.get("family") == "IPv4" and node.get("address"):
+            print(node["address"]); raise SystemExit(0)
+        for v in node.values(): walk(v)
+    elif isinstance(node, list):
+        for v in node: walk(v)
+walk(data)
+')"
+[ -n "$IP" ] || die "could not read the server public IPv4 address"
 ok "public IP: $IP"
 
 # ------------------------------------------------------------------ firewall --
@@ -102,7 +125,22 @@ ok "public IP: $IP"
 # PostgreSQL, the L3 execution engine's admin RPC, Grafana, the signing service — stays on
 # the Docker network where a misconfigured container cannot expose it to the internet.
 printf '\n%sFirewall%s\n' "$BOLD" "$RESET"
-upctl server firewall configure "$HOSTNAME_" --enable >/dev/null 2>&1 || true
+
+# UpCloud creates servers with a default rule template that opens more than KAURAX needs
+# (3389/RDP, 8443, 8880). On a trial account that template CANNOT be modified — the API
+# returns TRIAL_FIREWALL. That is survivable but must not pass silently, because the
+# documented posture is 22/80/443 only.
+#
+# The host firewall is the authoritative layer either way: bootstrap.sh configures ufw with
+# default-deny incoming and exactly three ports open. A port left open upstream reaches a
+# host that refuses it.
+if upctl server firewall show "$HOSTNAME_" 2>/dev/null | grep -qE "port: (3389|8880)"; then
+  warn "UpCloud's default rule template is in place; it opens 3389, 8443 and 8880"
+  if ! upctl server firewall delete "$HOSTNAME_" --position 1 --dry-run >/dev/null 2>&1; then
+    warn "this account cannot modify the cloud firewall (trial mode)"
+    warn "ufw on the host is what actually closes those ports — run bootstrap.sh"
+  fi
+fi
 
 add_rule() { # add_rule <port> <comment>
   upctl server firewall add "$HOSTNAME_" \

@@ -13,16 +13,16 @@
 
 | Suite | Result | What it exercises |
 |---|---|---|
-| `forge test` | **162 passed** | Settlement, bridge, Merkle proofs, AI layer, Names, Swap, Launchpad |
-| `pnpm test` | **66 passed** | Node hashing/Merkle/batch encoding, indexer decoding, API config and validation |
+| `forge test` | **210 passed** | Settlement, bridge, Merkle proofs, forced inclusion, governance, Names, Swap, Launchpad |
+| `pnpm test` | **121 passed** | Write-ahead log recovery, derivation checkpoint, signing seam, keystore, indexer decoding, API validation |
 | `tests/acceptance.sh` | **47 passed** | Deposit → sequence → batch → recover from L2 calldata → output root → proven withdrawal |
+| `tests/forced-inclusion.sh` | **passed** | Censorship halts settlement on a live chain, and recovery resumes it |
 | `tests/api-smoke.sh` | **35 passed** | API + indexer + PostgreSQL against live chain data |
-| `tests/apps-smoke.sh` | **43 passed** | Names, Swap (incl. liquidity) and Launchpad (incl. sale creation) through the frontends' own ABIs |
-| `pnpm build` | **18/18** | Every package and all 10 frontends |
-| `pnpm typecheck` | **23/23** | Whole monorepo |
+| `tests/apps-smoke.sh` | **43 passed** | Names, Swap and Launchpad through the frontends' own ABIs |
+| `pnpm build` | **25/25 tasks** | Every package, service and all 10 frontends |
 | Security sweep | **0 real findings** | No TODOs, mock data, fabricated metrics or committed keys |
 
-**Total: 353 automated checks passing.**
+**Total: 456 automated checks passing.**
 
 ---
 

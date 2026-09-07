@@ -47,27 +47,35 @@ printf '%sDeploying KAURAX frontends%s  %sscope: %s%s\n' "$BOLD" "$RESET" "$DIM"
 # Rebuilt from scratch each run so a stale file can never be deployed.
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
+# Patterns without a leading slash match at EVERY depth. That is what is wanted for
+# node_modules and build output, and actively wrong for top-level directories: an
+# unanchored 'docs/' also excluded apps/docs, and the build then failed with "No package
+# found with name '@kaurax/app-docs' in workspace" — a confusing way to learn about rsync.
+# Everything meant to be root-only is anchored with a leading slash.
 rsync -a \
-  --exclude='.git' \
-  --exclude='.github' \
-  --exclude='.devnet' \
-  --exclude='.turbo' \
-  --exclude='.vercel' \
-  --exclude='docs/' \
-  --exclude='infra/' \
+  --exclude='/.git' \
+  --exclude='/.github' \
+  --exclude='/.devnet' \
+  --exclude='/.turbo' \
+  --exclude='/.vercel' \
+  --exclude='/infra' \
+  --exclude='/blockchain/contracts/lib' \
+  --exclude='/blockchain/contracts/out' \
+  --exclude='/blockchain/contracts/cache' \
+  --exclude='/blockchain/contracts/broadcast' \
   --exclude='node_modules' \
   --exclude='.next' \
   --exclude='dist' \
-  --exclude='blockchain/contracts/lib' \
-  --exclude='blockchain/contracts/out' \
-  --exclude='blockchain/contracts/cache' \
-  --exclude='blockchain/contracts/broadcast' \
   --exclude='*.log' \
   --exclude='*.tsbuildinfo' \
   ./ "$STAGE/"
 
 # The per-app build configs live under infra/, which the copy above excludes. They are the
 # one thing from there that the deploy needs.
+#
+# docs/ is NOT excluded, and must not be: apps/docs renders the repository's own docs
+# directory rather than keeping a second copy of it, so excluding it builds a docs site
+# with no documentation in it.
 mkdir -p "$STAGE/infra/vercel"
 cp infra/vercel/*.json "$STAGE/infra/vercel/"
 
