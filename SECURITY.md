@@ -1,202 +1,88 @@
-# KAURAX — Security
+# Security Policy
 
-Protocol threats are in [`docs/threat-model.md`](docs/threat-model.md). This document covers
-the **deployment**: secrets, exposure, hardening, and what to do when something goes wrong.
+## Reporting a vulnerability
 
-**Nothing in KAURAX has been audited. KAX has no monetary value. Do not deposit anything
-you care about.**
+**Email:** security@kaurax.network — or, if that bounces, open a GitHub **Security Advisory**
+(Security → Advisories → Report a vulnerability) on this repository. Advisories are private
+until published.
 
----
+**Please do not open a public issue for a security bug.**
 
-## 1. Secrets
+Include what you can:
 
-### Never commit
+- what the bug is, and what an attacker gains
+- how to reproduce it — a failing test or a script is ideal
+- affected contracts, files or endpoints
+- how you would fix it, if you have a view
 
-```
-private keys        mnemonics          seed phrases
-database passwords  API keys           TLS private keys
-.env                keystore files     deployment SSH keys
-```
+### What to expect
 
-`.gitignore` excludes `.env`, `.env.*` (except `.env.example`), `*.key`, `*.pem`,
-`keystore/` and `mnemonic.txt`. CI fails the build if an `.env` file is ever tracked.
-
-### The keys in `.env.example` are deliberately public
-
-They are the well-known Anvil development accounts, published in Foundry's own
-documentation. They hold no value and exist so a local devnet needs no key generation.
-
-**Anyone can spend from them.** `infra/scripts/testnet/deploy.sh` refuses to deploy if any
-of them is configured, comparing by *derived address* so no key literal lives in this
-repository.
-
-### Where each secret lives
-
-| Secret | Lives in | Never in |
-|---|---|---|
-| `POSTGRES_PASSWORD` | server `.env` | git, images, CI, browsers |
-| `XKIRO_API_KEY` | server `.env`, read by `services/api` | any `NEXT_PUBLIC_*`, any bundle |
-| `*_PRIVATE_KEY` | server `.env`, ideally a KMS | git, images, CI logs |
-| `UPCLOUD_SSH_KEY` | GitHub Actions secret | git |
-| TLS keys | `certbot-certs` volume | git |
-
-`deploy.yml` never transmits application secrets. It triggers a rebuild on the server,
-which reads the `.env` already there.
-
-### Generating real values
-
-```bash
-openssl rand -base64 32                 # database and Grafana passwords
-cast wallet new                         # a fresh keypair per operational role
-```
-
-Use a **different key per role** (sequencer, batcher, proposer, deployer). A single
-compromised key should not cost you all four.
-
----
-
-## 2. What is exposed
-
-| Service | Reachable from the internet |
+| | |
 |---|---|
-| Nginx (80, 443) | **yes** — the only published ports |
-| KAURAX RPC | via Nginx, rate limited |
-| KAURAX API | via Nginx, rate limited, CORS allowlisted |
-| Indexer health | via Nginx, restricted to private CIDRs |
-| **PostgreSQL** | **no** — internal Docker network only |
-| **L3 execution engine** | **no** — exposes `anvil_*`; never published |
-| **Grafana** | **no** — bound to `127.0.0.1`, reach it over SSH |
-| **Prometheus** | **no** — internal only |
+| Acknowledgement | 48 hours |
+| Initial assessment | 5 business days |
+| Fix or a written plan | 30 days for HIGH and CRITICAL |
+| Public disclosure | After a fix ships, coordinated with you |
 
-Verify after any change:
+We will credit you unless you ask us not to.
 
-```bash
-docker compose ps --format 'table {{.Service}}\t{{.Ports}}'
-sudo ufw status
-```
-
-Only `nginx` should show `0.0.0.0` bindings.
+**There is no bug bounty yet.** Saying otherwise would be worse than saying nothing. One is
+planned for Milestone 1 of `docs/FUNDING.md`.
 
 ---
 
-## 3. RPC hardening
+## Scope
 
-Three independent layers:
+**In scope:** the settlement contracts (`KauraxPortal`, `KauraxL2OutputOracle`,
+`KauraxBatchInbox`, `KauraxL2ERC20Bridge`), the dispute game, governance, the L3 predeploys,
+the node (sequencer, derivation, batcher, proposer), the signing service, the backend API and
+indexer, and the CLI wallet.
 
-1. **The node** blocks `anvil_`, `evm_`, `hardhat_`, `debug_`, `admin_`, `miner_`,
-   `personal_`, `txpool_`, `engine_` and `ots_` on the public endpoint, over HTTP **and**
-   WebSocket. `eth_accounts` returns `[]`.
-2. **The devnet script asserts it** at startup and aborts if the block ever regresses, so
-   the guarantee cannot silently rot.
-3. **Nginx** rate limits to 20 r/s per IP (burst 40) and caps concurrent connections.
+**Out of scope:** anything already documented as a known limitation in
+`MAINNET_READINESS.md`. Reporting that KAURAX has no fault proofs is not a finding — it is
+on the front page. The same goes for the single sequencer and the guardian's role in
+resolving disputes.
 
-What is **not** implemented: authentication, API keys, per-key quotas, a WAF, DDoS
-protection. A public RPC is a free compute endpoint; treat these limits as a speed bump.
-
----
-
-## 4. Server hardening
-
-`infra/scripts/bootstrap.sh` applies:
-
-- UFW: deny inbound except 22, 80, 443
-- SSH: no root login, no password authentication, `MaxAuthTries 3`
-- Fail2ban on `sshd`
-- A non-root `kaurax` deploy user; containers run as unprivileged users
-- Unattended security updates
-
-It **refuses to disable password SSH unless a key is already installed** for the deploy
-user, and reverts the change if `sshd` rejects the config. It cannot lock you out.
+Also out of scope: denial of service against the public devnet endpoint, and the published
+Anvil keys used by the local devnet, which are public by design.
 
 ---
 
-## 5. Application-level controls
+## Known limitations — please read before reporting
 
-**CORS** — `API_CORS_ORIGINS` is an explicit allowlist. `*` is rejected at startup, so a
-misconfiguration fails immediately rather than quietly exposing the API.
+KAURAX is a **testnet**. KAX has no monetary value.
 
-**Rate limiting** — 120 requests/minute per IP by default. Health endpoints are exempt so
-deployment automation is never throttled.
+1. **No fault proof system.** Output roots are accepted because the proposer key signed them.
+   Nothing verifies they match any execution.
+2. **The guardian resolves disputes.** A 2-of-3 multisig is the final arbiter.
+3. **One sequencer.** It can reorder and delay. Forced inclusion bounds censorship: an
+   ignored forced transaction halts settlement for everyone.
+4. **No external audit.**
 
-**Input validation** — addresses and hashes are shape-checked before reaching SQL;
-pagination is clamped to 100; request bodies are capped at 1 MB.
-
-**SQL injection** — every query is parameterised. No string interpolation anywhere in
-`services/`.
-
-**Payment integrity** — a payment is confirmed only after the API verifies the transaction
-on chain: receipt exists, status is success, recipient matches, amount is sufficient. A
-unique index guarantees one transaction settles one payment, because a read-then-write check
-would race.
-
-**AI key isolation** — the browser talks to the KAURAX API, which talks to xKiro. The model
-is chosen server-side, so a client cannot select an expensive model. The system prompt is
-server-side, so a client cannot override the assistant's constraints. Errors never echo the
-upstream body, which can contain request headers.
-
-**Logging** — `authorization` and `cookie` headers are redacted. 5xx messages are not echoed
-to clients, since they can carry connection strings.
+These are documented in `docs/SECURITY_REVIEW.md` with severities, and in
+`MAINNET_READINESS.md` with a readiness score of 47/100.
 
 ---
 
-## 6. What is not protected
+## What we consider a real finding
 
-Stated plainly, because pretending otherwise is the actual danger:
-
-| Gap | Consequence |
-|---|---|
-| **No fault proofs** | A compromised proposer can drain `KauraxPortal` after the challenge window. This is the largest risk in the entire system. |
-| **Single sequencer** | It can censor, reorder, or halt the chain. No failover. |
-| **No forced exit** | Deposits cannot be censored; withdrawals can. |
-| **Single EOA roles** | Guardian, challenger, proposer and deployer are one key each unless you set multisigs. |
-| **No KMS** | Keys are environment variables on the server. |
-| **Single server** | One VPS is a single point of failure for the chain. |
-| **No audits** | None, of anything. |
-| **No DDoS protection** | Rate limiting only. |
-| **Unbatched blocks not durable** | Node loss before batching loses those transactions. |
+- A way to move funds you are not entitled to
+- A way to finalize a withdrawal against a disputed or deleted output root
+- A way to make the dispute game pay out incorrectly, or strand a bond
+- A way to bypass forced inclusion, or to acknowledge a transaction that was not included
+- A way to reach an admin RPC namespace through the public endpoint
+- Access control, reentrancy, or arithmetic bugs in any in-scope contract
+- A way to make the node accept a batch or deposit it should reject
 
 ---
 
-## 7. Incident response
+## Security practices
 
-**Suspected bridge compromise** — pause first, investigate second:
-
-```bash
-cast send $KAURAX_PORTAL_ADDRESS "pause()" --rpc-url $L2_RPC_URL --private-key $GUARDIAN_KEY
-```
-
-Halts deposits and withdrawal finalization. Then check whether any output root diverges from
-a chain rebuilt from data availability (`docs/data-availability.md`).
-
-**Suspected key compromise** — stop the affected service, generate a new key, rotate it on
-chain (`setBatcher`, `setProposer`), update `.env`, redeploy, and move any remaining funds
-off the old key.
-
-**Server compromise** — take it off the network, rotate *every* secret including the
-database password and the AI key, rebuild from a clean image, restore PostgreSQL from a
-backup taken before the incident. Do not reuse the disk.
-
-**Chain halted** — `docker compose logs -f kaurax-l3`. Usually an unfunded batcher key or an
-unreachable L2. Funds are not at risk while it is stopped; the chain is simply not advancing.
-
----
-
-## 8. Regular checks
-
-Weekly: `docker compose ps` and the health endpoint; batcher and proposer balances; disk
-usage; `./infra/scripts/security-sweep.sh`.
-
-Monthly: `pnpm audit`, `docker compose pull`, review Fail2ban bans, verify a backup actually
-restores.
-
-Automated: `security.yml` runs gitleaks, the tracked-`.env` check, a dependency audit and
-Slither on every push and weekly.
-
----
-
-## 9. Reporting a vulnerability
-
-This is an unaudited testnet with no bug bounty. Do not deposit anything of value.
-
-For anything already documented here or in `docs/threat-model.md`, open an issue. For
-anything not documented, contact the maintainers privately before disclosing.
+- No secrets in the repository. History was scanned before it was made public; see the
+  report in `docs/GRANT_READINESS.md`.
+- Operator keys can be held by a signing service so the node never sees them
+  (`docs/key-management.md`).
+- Every privileged role is held by a multisig or a timelock, not an EOA.
+- CI runs Slither as a hard gate on high-severity findings.
+- `infra/scripts/security-sweep.sh` scans for committed keys, mock data and fabricated
+  metrics.
