@@ -61,9 +61,29 @@ fi
 
 # --------------------------------------------------------------- 2. faucet --
 step "Faucet: fund the new account"
-OUT="$(cli faucet 2>&1)" || { bad "faucet failed: $(printf '%s' "$OUT" | tail -2)"; exit 1; }
-FUND_TX="$(printf '%s' "$OUT" | awk '/^tx /{print $2}')"
-[ -n "$FUND_TX" ] && ok "funded, tx $FUND_TX" || bad "faucet returned no transaction hash"
+OUT="$(cli faucet 2>&1)"
+if printf '%s' "$OUT" | grep -q "^funded"; then
+  FUND_TX="$(printf '%s' "$OUT" | awk '/^tx /{print $2}')"
+  ok "funded, tx $FUND_TX"
+elif printf '%s' "$OUT" | grep -qi "recently\|cooldown"; then
+  # Not a failure. The cooldown is the faucet's abuse protection doing its job, and a test
+  # that reported it as broken would be pressure to weaken it. Fall back to a funded key so
+  # the rest of the pipeline can still be exercised.
+  ok "faucet enforced its cooldown (abuse protection works)"
+  if [ -n "${E2E_FUNDING_KEY:-}" ]; then
+    cli wallet import "$E2E_FUNDING_KEY" funder --passphrase "$KAURAX_PASSPHRASE" >/dev/null 2>&1
+    SEND="$(cli wallet send "$ADDR" 5 --label funder 2>&1)"
+    printf '%s' "$SEND" | grep -q "status   success" \
+      && ok "funded from E2E_FUNDING_KEY instead" \
+      || { bad "fallback funding failed: $(printf '%s' "$SEND" | tail -2)"; exit 1; }
+  else
+    bad "on cooldown and no E2E_FUNDING_KEY set; cannot continue"
+    exit 1
+  fi
+else
+  bad "faucet failed: $(printf '%s' "$OUT" | tail -2)"
+  exit 1
+fi
 
 # ------------------------------------------------------------- 3. balance --
 step "State: the funding is visible on chain"

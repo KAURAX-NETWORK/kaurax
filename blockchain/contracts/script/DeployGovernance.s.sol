@@ -8,6 +8,7 @@ import {KauraxTimelock} from "../src/governance/KauraxTimelock.sol";
 import {KauraxL2OutputOracle} from "../src/L2/KauraxL2OutputOracle.sol";
 import {KauraxPortal} from "../src/L2/KauraxPortal.sol";
 import {KauraxBatchInbox} from "../src/L2/KauraxBatchInbox.sol";
+import {KauraxDisputeGame} from "../src/dispute/KauraxDisputeGame.sol";
 
 /// @notice Deploys governance and hands the privileged roles to it.
 ///
@@ -84,9 +85,27 @@ contract DeployGovernance is Script {
             console2.log("portal.guardian    -> multisig %s", multisig);
         }
         if (p.oracle != address(0)) {
-            // Challenger last among the oracle's own calls: it is the role being given away.
-            KauraxL2OutputOracle(p.oracle).setChallenger(timelock);
-            console2.log("oracle.challenger  -> timelock %s", timelock);
+            // Only if the challenger is still a plain key. Once a dispute game holds it,
+            // deleting an output root is the outcome of a played game rather than an act of
+            // authority, and handing the role to a timelock would quietly undo that — a
+            // downgrade dressed as a governance upgrade.
+            //
+            // Where a game is wired in, governance takes the game's guardian role instead,
+            // which is set separately with KAURAX_DISPUTE_GAME_ADDRESS.
+            if (KauraxL2OutputOracle(p.oracle).disputeGameEnforced()) {
+                console2.log("oracle.challenger  -> unchanged (a dispute game holds it)");
+            } else {
+                KauraxL2OutputOracle(p.oracle).setChallenger(timelock);
+                console2.log("oracle.challenger  -> timelock %s", timelock);
+            }
+        }
+
+        // The role that matters most for the trust model: whoever resolves a dispute is the
+        // final arbiter, and it should not be one key.
+        address game = vm.envOr("KAURAX_DISPUTE_GAME_ADDRESS", address(0));
+        if (game != address(0)) {
+            KauraxDisputeGame(payable(game)).setGuardian(multisig);
+            console2.log("disputeGame.guardian -> multisig %s", multisig);
         }
         if (p.inbox != address(0)) {
             KauraxBatchInbox(p.inbox).setOwner(timelock);
