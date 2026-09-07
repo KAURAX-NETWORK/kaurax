@@ -6,6 +6,14 @@
  * devnet, a testnet, or any other KAURAX deployment. Values that cannot be read are
  * printed as "No data available" rather than guessed.
  */
+import {
+  walletCreate,
+  walletImport,
+  walletList,
+  walletBalance,
+  walletSend,
+  faucet,
+} from "./wallet.js";
 import {connect, formatWei, type KauraxClient} from "./lib.js";
 import {config as loadDotenv} from "dotenv";
 import {existsSync} from "node:fs";
@@ -39,6 +47,16 @@ function fail(message: string): never {
   process.exit(1);
 }
 
+/** `--name value` anywhere in argv. Kept simple deliberately; this CLI has few options. */
+function flag(name: string): string | undefined {
+  const i = process.argv.indexOf(`--${name}`);
+  return i === -1 ? undefined : process.argv[i + 1];
+}
+
+const RPC_URL = process.env.KAURAX_RPC_URL ?? "http://127.0.0.1:8420";
+const API_URL = process.env.KAURAX_API_URL ?? "http://127.0.0.1:4000";
+const CHAIN_ID = Number(process.env.KAURAX_CHAIN_ID ?? 8420);
+
 const USAGE = `${BOLD}kaurax${RESET} — KAURAX Layer-3 CLI
 
 ${BOLD}USAGE${RESET}
@@ -57,11 +75,24 @@ ${BOLD}COMMANDS${RESET}
   batcher status                  Batch submission state
   batch latest                    The most recent batch published to the L2
   wallet add                      Network parameters for MetaMask
+
+${BOLD}WALLET${RESET}  ${DIM}keys are encrypted with a passphrase in ~/.kaurax/keys.json${RESET}
+  wallet create [label]           Generate a key
+  wallet import <0xkey> [label]   Import an existing key
+  wallet list                     Keys held locally
+  wallet balance [label|address]  Balance and nonce
+  wallet send <to> <amount>       Sign and broadcast a KAX transfer
+  faucet [address]                Request testnet KAX
+
   version                         Version information
 
 ${BOLD}ENVIRONMENT${RESET}
   KAURAX_RPC_URL                  default http://127.0.0.1:8420
   KAURAX_WS_URL                   default ws://127.0.0.1:8421
+  KAURAX_API_URL                  default http://127.0.0.1:4000 (faucet)
+  KAURAX_CHAIN_ID                 default 8420
+  KAURAX_PASSPHRASE               unlocks a stored key without a shell argument
+  KAURAX_HOME                     default ~/.kaurax
 `;
 
 async function client(): Promise<KauraxClient> {
@@ -350,7 +381,7 @@ async function walletAdd(): Promise<void> {
 // -------------------------------------------------------------------- main --
 
 async function main(): Promise<void> {
-  const [command, sub, arg] = process.argv.slice(2);
+  const [command, sub, arg, arg2] = process.argv.slice(2);
 
   switch (command) {
     case undefined:
@@ -396,9 +427,28 @@ async function main(): Promise<void> {
       if (sub === "latest" || sub === undefined) return batchLatest();
       break;
 
-    case "wallet":
+    case "wallet": {
       if (sub === "add") return walletAdd();
+      if (sub === "create") return walletCreate(flag("passphrase"), arg ?? "default");
+      if (sub === "import") return walletImport(arg ?? "", flag("passphrase"), arg2 ?? "imported");
+      if (sub === "list") return walletList();
+      if (sub === "balance") return walletBalance(RPC_URL, CHAIN_ID, arg);
+      if (sub === "send") {
+        if (!arg || !arg2) fail("usage: kaurax wallet send <to> <amount> [--label L] [--passphrase P]");
+        return walletSend({
+          rpcUrl: RPC_URL,
+          chainId: CHAIN_ID,
+          to: arg,
+          amount: arg2,
+          label: flag("label"),
+          passphrase: flag("passphrase"),
+        });
+      }
       break;
+    }
+
+    case "faucet":
+      return faucet(API_URL, arg, flag("label"));
   }
 
   fail(`unknown command "${[command, sub].filter(Boolean).join(" ")}"\n\n${USAGE}`);
