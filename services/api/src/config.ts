@@ -12,6 +12,15 @@ export interface ApiConfig {
   corsOrigins: string[];
   rateLimit: {max: number; timeWindow: string};
   ai: {baseUrl: string; apiKey: string | null; model: string};
+  /**
+   * Devnet faucet. Disabled unless a key is configured, because a faucet on a network
+   * where the gas token has value would simply be theft.
+   */
+  faucet: {
+    privateKey: string | null;
+    amountKax: string;
+    cooldownHours: number;
+  };
   version: string;
 }
 
@@ -81,6 +90,13 @@ export function loadApiConfig(): ApiConfig {
       // rather than failing mysteriously or inventing a reply.
       apiKey: optional("XKIRO_API_KEY"),
       model: optional("XKIRO_MODEL") ?? "openai/gpt-5.6-sol",
+    },
+    faucet: {
+      // Absent means no faucet. The endpoint then reports itself unconfigured rather than
+      // failing in a way a caller has to guess at.
+      privateKey: optional("FAUCET_PRIVATE_KEY"),
+      amountKax: optional("FAUCET_AMOUNT_KAX") ?? "100",
+      cooldownHours: Number(optional("FAUCET_COOLDOWN_HOURS") ?? 6),
     },
     version: process.env.KAURAX_VERSION ?? "0.1.0",
   };

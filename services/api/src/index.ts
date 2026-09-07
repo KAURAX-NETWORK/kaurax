@@ -22,6 +22,7 @@ import {registerAnalyticsRoutes} from "./routes/analytics.js";
 import {registerPaymentRoutes} from "./routes/payments.js";
 import {registerAiRoutes} from "./routes/ai.js";
 import {registerFeatureRoutes} from "./routes/features.js";
+import {registerFaucetRoutes} from "./routes/faucet.js";
 
 async function main(): Promise<void> {
   const cfg = loadApiConfig();
@@ -116,6 +117,7 @@ async function main(): Promise<void> {
       "/api/payments",
       "/api/analytics",
       "/api/ai/chat",
+      "/api/faucet",
     ],
     note: "KAURAX is a testnet. KAX has no monetary value.",
   }));
@@ -126,6 +128,7 @@ async function main(): Promise<void> {
   registerAnalyticsRoutes(app, ctx);
   registerPaymentRoutes(app, ctx);
   registerAiRoutes(app, ctx);
+  registerFaucetRoutes(app, ctx);
 
   await app.listen({host: cfg.host, port: cfg.port});
   app.log.info(
