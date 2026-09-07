@@ -37,7 +37,7 @@ anyone can rebuild the chain from it. `tests/acceptance.ts` does exactly that.
 ## Quickest path: the whole stack on one machine
 
 ```bash
-git clone https://github.com/softnextgr/kaurax.git
+git clone https://github.com/KAURAX-NETWORK/kaurax.git
 cd kaurax
 cp .env.example .env
 ```

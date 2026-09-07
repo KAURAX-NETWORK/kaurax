@@ -8,7 +8,7 @@ what a good contribution looks like here.
 ## Run it locally
 
 ```bash
-git clone https://github.com/softnextgr/kaurax.git
+git clone https://github.com/KAURAX-NETWORK/kaurax.git
 cd kaurax
 pnpm install
 ```
