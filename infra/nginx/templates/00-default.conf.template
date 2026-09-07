@@ -20,7 +20,33 @@ server {
         root /var/www/certbot;
     }
 
+    # Reaching this server by an address that is not one of the named vhosts — most often
+    # its bare IP, before DNS exists — serves the two endpoints that are public anyway.
+    #
+    # This does not widen what is exposed. The execution engine's admin RPC, PostgreSQL,
+    # the indexer's internals and Grafana are not published to the host at all, so they are
+    # unreachable from here regardless of Host header. What it avoids is a deployment that
+    # answers only to a hostname nobody has pointed at it yet.
+    #
+    # Set KAURAX_ALLOW_IP_ACCESS=deny and re-render to restore the closed behaviour once
+    # real hostnames resolve.
+    location /api/ {
+        proxy_pass http://kaurax_api;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location / {
-        return 444; # close the connection without a response
+        proxy_pass http://kaurax_rpc;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        $connection_upgrade;
     }
 }

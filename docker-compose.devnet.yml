@@ -68,6 +68,19 @@ services:
     depends_on:
       l2: {condition: service_healthy}
 
+  # UpCloud blocks inbound 80 and 443 on trial accounts — verified by serving on 8880 from
+  # the same host and reaching it, while 80 stayed filtered with identical firewall rules.
+  # Publishing the same nginx on an allowed port keeps the endpoint usable until the
+  # account is upgraded, at which point these extra mappings can go.
+  #
+  # This is a port mapping, not a second configuration: it is the same nginx, the same
+  # vhosts and the same upstreams.
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+      - "${KAURAX_HTTP_ALT_PORT:-8880}:80"
+
 volumes:
   l1-state:
   l2-state:
