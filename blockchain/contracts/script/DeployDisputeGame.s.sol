@@ -52,8 +52,16 @@ contract DeployDisputeGame is Script {
         console2.log("  finalization period %s s", finalization);
 
         if (transferRole) {
+            // Order matters and is easy to get wrong: setDisputeGame is challenger-only, so
+            // it must happen while the deployer still holds that role. Handing the role
+            // over first leaves the oracle permanently unable to learn about the game, and
+            // finalization silently stays a bare timer — the exact hole this deployment is
+            // meant to close.
+            KauraxL2OutputOracle(oracle).setDisputeGame(address(game));
+            console2.log("  oracle.disputeGame -> dispute game (finalization now waits for a live game)");
+
             KauraxL2OutputOracle(oracle).setChallenger(address(game));
-            console2.log("  oracle.challenger -> dispute game (deletion is now permissionless to trigger)");
+            console2.log("  oracle.challenger  -> dispute game (deletion is now permissionless to trigger)");
         } else {
             console2.log("");
             console2.log("Challenger role NOT transferred. The game is deployed but inert:");

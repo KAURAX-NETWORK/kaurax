@@ -104,11 +104,41 @@ node recovered unaided: re-proposed block 6073, index back to 507
 - [x] Challenge can be opened · [x] Bonds work · [x] Bisection works
 - [x] Guardian resolution works · [x] No secrets committed · [x] Documentation
 - [x] Internal security review · [x] Recovery after deletion
+- [x] Proposer escrow held on chain · [x] Dispute game wired into finalization
 - [ ] Timeout path on the live chain (tested in unit tests only)
 - [ ] Bridge deposit/withdrawal re-run since the dispute game landed
 - [ ] External audit · [ ] TLS · [ ] Governance holding roles
 
 ---
+
+## 5b. Escrow and finalization interlock, on the live chain
+
+Redeployed 2026-09-07 with `PROPOSER_BOND` and the dispute game wired into finalization.
+
+```
+oracle              0x1ccdf061335A5916BB2d28F91E8a8d3FB85e4552
+dispute game        0x88c8639057D84D82bA949Eb09ddDe00500a53133
+oracle.disputeGame  -> dispute game   (finalization waits for a live game)
+oracle.challenger   -> dispute game   (deletion needs a played game)
+
+PROPOSER_BOND       100000000000000000 wei
+node proposed       l3Block 6713
+outputs             1
+oracle balance      100000000000000000    <- escrow actually held
+```
+
+The node reads `PROPOSER_BOND` from the contract rather than from configuration, so a
+mismatch cannot silently reject every proposal.
+
+**Two migration problems this surfaced**, both now handled:
+
+- `DeployDisputeGame` transferred the challenger role before calling `setDisputeGame`, which
+  is challenger-only — so the oracle could never learn about the game and finalization
+  stayed a bare timer. Ordering fixed and commented.
+- A fresh oracle defaults to `KAURAX_STARTING_BLOCK=1`, so against a running chain the
+  proposer asked the engine for state thousands of blocks back and every proposal failed
+  with `BlockOutOfRangeError`. Deploying against a live chain must anchor the oracle at the
+  current head.
 
 ## 6. Test results
 
