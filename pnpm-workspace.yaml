@@ -1,0 +1,6 @@
+packages:
+  - "apps/*"
+  - "services/*"
+  - "packages/*"
+  - "blockchain/l3"
+  - "tests"

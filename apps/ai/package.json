@@ -1,0 +1,29 @@
+{
+  "name": "@kaurax/app-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI assistance for the KAURAX network",
+  "scripts": {
+    "dev": "next dev -p 3014",
+    "build": "next build",
+    "start": "next start -p 3014",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "echo \"no unit tests in @kaurax/app-ai; AI path covered by tests/api-smoke.sh\"",
+    "clean": "rm -rf .next"
+  },
+  "dependencies": {
+    "@kaurax/types": "workspace:*",
+    "@kaurax/ui": "workspace:*",
+    "next": "^16.3.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  }
+}

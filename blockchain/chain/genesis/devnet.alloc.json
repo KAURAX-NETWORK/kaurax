@@ -1,0 +1,34 @@
+{
+  "_comment": [
+    "KAURAX devnet genesis allocation.",
+    "",
+    "These are the well-known, publicly documented Anvil development accounts. Their",
+    "private keys are published in Foundry's documentation, hold no value, and exist so",
+    "that a local devnet needs no key generation. They MUST NOT be used on any network",
+    "that is not a local devnet.",
+    "",
+    "KAX allocated here is a testnet gas asset with no monetary value. On a network with a",
+    "live bridge, KAX in circulation is instead backed by value escrowed in KauraxPortal",
+    "on the underlying L2; a genesis allocation exists only so the devnet is usable before",
+    "any deposit has been made."
+  ],
+  "nativeCurrency": {"name": "KAURAX", "symbol": "KAX", "decimals": 18},
+  "alloc": {
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266": {"balance": "10000000000000000000000", "label": "devnet account 0 (deployer / sequencer)"},
+    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8": {"balance": "10000000000000000000000", "label": "devnet account 1 (batcher)"},
+    "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC": {"balance": "10000000000000000000000", "label": "devnet account 2 (proposer)"},
+    "0x90F79bf6EB2c4f870365E785982E1f101E93b906": {"balance": "10000000000000000000000", "label": "devnet account 3 (user)"},
+    "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65": {"balance": "10000000000000000000000", "label": "devnet account 4 (user)"}
+  },
+  "predeploys": {
+    "0x4200000000000000000000000000000000000016": {
+      "artifact": "L3ToL2MessagePasser.sol/L3ToL2MessagePasser.json",
+      "description": "Origin of every L3 -> L2 withdrawal. Its tree root is folded into each output root."
+    },
+    "0x4200000000000000000000000000000000000010": {
+      "artifact": "KauraxL3ERC20Bridge.sol/KauraxL3ERC20Bridge.json",
+      "description": "KAURAX-side ERC-20 bridge. Constructor arguments are resolved at genesis time.",
+      "constructorArgs": ["<messagePasser>", "<l2ERC20Bridge>"]
+    }
+  }
+}

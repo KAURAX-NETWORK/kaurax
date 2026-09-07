@@ -1,0 +1,95 @@
+{
+  "$schema": "./schema.json",
+  "name": "KAURAX Devnet",
+  "profile": "devnet",
+  "layer": 3,
+  "networkId": "kaurax-devnet",
+
+  "chain": {
+    "chainId": 8420,
+    "blockTimeSeconds": 2,
+    "gasLimit": 30000000,
+    "emptyBlocks": true
+  },
+
+  "nativeCurrency": {
+    "name": "KAURAX",
+    "symbol": "KAX",
+    "decimals": 18,
+    "note": "Testnet gas asset. No monetary value."
+  },
+
+  "fees": {
+    "initialBaseFeeWei": "1000000000",
+    "minimumBaseFeeWei": "100000000",
+    "baseFeeMaxChangeDenominator": 8,
+    "elasticityMultiplier": 2,
+    "minimumPriorityFeeWei": "0",
+    "l2DataFee": {
+      "enabled": true,
+      "scalar": 1000000,
+      "overhead": 188,
+      "note": "Charges users for the cost of posting their data to the underlying L2."
+    }
+  },
+
+  "settlement": {
+    "layer": 2,
+    "chainId": 8415,
+    "name": "kaurax-devnet-l2",
+    "kind": "local-anvil",
+    "note": "Local EVM chain standing in for the underlying rollup. Contract calls are real; the chain is local.",
+    "contracts": {
+      "portal": "${KAURAX_PORTAL_ADDRESS}",
+      "outputOracle": "${KAURAX_OUTPUT_ORACLE_ADDRESS}",
+      "batchInbox": "${KAURAX_BATCH_INBOX_ADDRESS}",
+      "standardBridge": "${KAURAX_L2_BRIDGE_ADDRESS}"
+    }
+  },
+
+  "l1": {
+    "chainId": 8410,
+    "kind": "local-anvil",
+    "note": "Local EVM chain standing in for Ethereum. The devnet L2 does not itself post to it; see docs/data-availability.md."
+  },
+
+  "dataAvailability": {
+    "mode": "calldata",
+    "target": "underlying-l2",
+    "compression": "zlib",
+    "maxBatchBytes": 128000
+  },
+
+  "sequencer": {
+    "mode": "single",
+    "decentralized": false,
+    "forcedInclusion": {
+      "implemented": true,
+      "via": "KauraxPortal.depositTransaction",
+      "adversariallyTested": false
+    }
+  },
+
+  "batcher": {
+    "submissionIntervalSeconds": 12,
+    "maxL3BlocksPerBatch": 50
+  },
+
+  "proposer": {
+    "outputProposalIntervalSeconds": 24,
+    "faultProofs": {
+      "implemented": false,
+      "status": "not-implemented",
+      "note": "Output roots are trusted. See docs/decentralization.md."
+    }
+  },
+
+  "bridge": {
+    "withdrawalChallengeWindowSeconds": 120,
+    "note": "Devnet value chosen for iteration speed. Production requires a window measured in days."
+  },
+
+  "genesis": {
+    "allocFile": "../genesis/devnet.alloc.json"
+  }
+}

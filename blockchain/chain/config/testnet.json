@@ -1,0 +1,72 @@
+{
+  "$schema": "./schema.json",
+  "name": "KAURAX Testnet",
+  "profile": "testnet",
+  "layer": 3,
+  "networkId": "kaurax-testnet",
+  "status": "not-deployed",
+  "statusNote": "Configuration only. No KAURAX testnet is running. Values marked TBD are populated at deployment time.",
+
+  "chain": {
+    "chainId": 8421,
+    "blockTimeSeconds": 2,
+    "gasLimit": 30000000,
+    "emptyBlocks": true
+  },
+
+  "nativeCurrency": {
+    "name": "KAURAX",
+    "symbol": "KAX",
+    "decimals": 18,
+    "note": "Testnet gas asset. No monetary value."
+  },
+
+  "fees": {
+    "initialBaseFeeWei": "1000000000",
+    "minimumBaseFeeWei": "100000000",
+    "baseFeeMaxChangeDenominator": 8,
+    "elasticityMultiplier": 2,
+    "minimumPriorityFeeWei": "0",
+    "l2DataFee": { "enabled": true, "scalar": 1000000, "overhead": 188 }
+  },
+
+  "settlement": {
+    "layer": 2,
+    "chainId": 84532,
+    "name": "base-sepolia",
+    "kind": "op-stack-l2",
+    "note": "Default only. Any OP Stack L2 may be configured: OP Sepolia (11155420), Mode, Zora, etc. Set L2_CHAIN_ID and L2_RPC_URL.",
+    "contracts": {
+      "portal": "TBD",
+      "outputOracle": "TBD",
+      "batchInbox": "TBD",
+      "standardBridge": "TBD"
+    }
+  },
+
+  "l1": {
+    "chainId": 11155111,
+    "name": "sepolia",
+    "kind": "ethereum-testnet"
+  },
+
+  "dataAvailability": {
+    "mode": "calldata",
+    "target": "underlying-l2",
+    "compression": "zlib",
+    "maxBatchBytes": 128000,
+    "alternatives": {
+      "blob": { "status": "configured-not-operated" },
+      "altda": { "status": "configured-not-operated" }
+    }
+  },
+
+  "sequencer": { "mode": "single", "decentralized": false },
+  "batcher": { "submissionIntervalSeconds": 12, "maxL3BlocksPerBatch": 50 },
+  "proposer": {
+    "outputProposalIntervalSeconds": 300,
+    "faultProofs": { "implemented": false, "status": "not-implemented" }
+  },
+  "bridge": { "withdrawalChallengeWindowSeconds": 604800 },
+  "genesis": { "allocFile": "../genesis/testnet.alloc.json" }
+}

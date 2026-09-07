@@ -1,0 +1,88 @@
+# KAURAX alerting rules.
+#
+# These cover the failures that actually matter for an L3: the chain stopping, and data or
+# state commitments failing to reach the underlying L2. Note what is NOT alertable here —
+# an incorrect output root. Nothing on chain detects that, which is why fault proofs are
+# the top mainnet blocker.
+groups:
+  - name: kaurax-liveness
+    rules:
+      - alert: KauraxSequencerDown
+        expr: kaurax_sequencer_healthy == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "KAURAX sequencer is not producing blocks"
+          description: "The chain has halted. There is no failover; this requires operator action."
+
+      - alert: KauraxBlockHeightStalled
+        expr: increase(kaurax_l3_block_height[3m]) == 0
+        for: 3m
+        labels: {severity: critical}
+        annotations:
+          summary: "KAURAX block height has not advanced in 3 minutes"
+
+      - alert: KauraxNodeUnreachable
+        expr: up{job="kaurax-node"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "kaurax-node metrics endpoint is unreachable"
+
+  - name: kaurax-data-availability
+    rules:
+      - alert: KauraxBatcherUnhealthy
+        expr: kaurax_batcher_healthy == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "KAURAX batcher is failing to publish to the L2"
+          description: "L3 data is not reaching the underlying L2. Blocks produced during this window are recoverable only from the node itself."
+
+      - alert: KauraxUnbatchedBlocksHigh
+        expr: kaurax_unbatched_l3_blocks > 200
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value }} KAURAX blocks are not yet published to the L2"
+          description: "This is the size of the data-loss window if the node is lost. Check the batcher key balance."
+
+      - alert: KauraxBatchStale
+        expr: kaurax_last_batch_age_seconds > 600
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "No KAURAX batch has reached the L2 in over 10 minutes"
+
+  - name: kaurax-settlement
+    rules:
+      - alert: KauraxL2Unreachable
+        expr: absent(kaurax_l2_block_height)
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "The underlying L2 is not reporting a block height"
+          description: "Batches and output roots cannot be submitted. Settlement has stopped."
+
+      - alert: KauraxL2Stalled
+        expr: increase(kaurax_l2_block_height[10m]) == 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "The underlying L2 block height has not advanced in 10 minutes"
+
+  - name: kaurax-rpc
+    rules:
+      - alert: KauraxRpcErrorRateHigh
+        expr: rate(kaurax_rpc_errors_total[5m]) / clamp_min(rate(kaurax_rpc_requests_total[5m]), 0.001) > 0.25
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Over 25% of KAURAX RPC requests are returning errors"
+
+      - alert: KauraxMempoolBacklog
+        expr: kaurax_mempool_size > 5000
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "KAURAX mempool backlog is {{ $value }} transactions"

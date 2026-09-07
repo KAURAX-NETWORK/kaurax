@@ -1,0 +1,25 @@
+# Prometheus scrape configuration for KAURAX.
+#
+# Every series comes from live component state. There are no recording rules that
+# synthesise a value: a gap in a graph means "not measured", not "zero".
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    network: kaurax
+    layer: "3"
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: kaurax-node
+    static_configs:
+      - targets: ["kaurax-node:7300"]
+        labels:
+          component: kaurax-node
+    metrics_path: /metrics
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

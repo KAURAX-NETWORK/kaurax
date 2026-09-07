@@ -1,0 +1,34 @@
+{
+  "name": "kaurax",
+  "version": "0.1.0",
+  "private": true,
+  "description": "KAURAX \u2014 an application-focused Ethereum Layer-3 settling through an underlying Layer-2",
+  "license": "MIT",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:contracts": "cd blockchain/contracts && forge test",
+    "test:acceptance": "./tests/acceptance.sh",
+    "devnet": "./infra/scripts/devnet/start.sh",
+    "devnet:stop": "./infra/scripts/devnet/stop.sh",
+    "devnet:status": "./infra/scripts/devnet/status.sh",
+    "sweep": "./infra/scripts/security-sweep.sh",
+    "clean": "turbo run clean && rm -rf .devnet node_modules/.cache",
+    "test:apps": "./tests/apps-smoke.sh",
+    "test:api": "./tests/api-smoke.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "turbo": "^2.3.3"
+  }
+}

@@ -1,0 +1,26 @@
+# NOTE: processed by the nginx image's envsubst step at container start.
+# Only ${KAURAX_DOMAIN} is substituted (NGINX_ENVSUBST_FILTER in docker-compose.yml);
+# nginx runtime variables like $host and $remote_addr are left alone.
+# Catch-all: anything arriving on an unrecognised host gets nothing useful.
+#
+# Without this, a request to the server's bare IP would be served by whichever server block
+# happens to be first, which is how internal endpoints get discovered.
+server {
+    listen 80 default_server;
+    server_name _;
+
+    # Used by the container healthcheck; never proxied anywhere.
+    location = /nginx-health {
+        access_log off;
+        return 200 "ok\n";
+    }
+
+    # Let's Encrypt HTTP-01 challenge.
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 444; # close the connection without a response
+    }
+}

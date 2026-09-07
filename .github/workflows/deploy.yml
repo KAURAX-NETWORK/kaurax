@@ -1,0 +1,97 @@
+name: deploy
+
+# Deploys the KAURAX server stack to UpCloud over SSH.
+#
+# Requires these repository secrets — none of them live in the repo:
+#   UPCLOUD_HOST         server IP or hostname
+#   UPCLOUD_USER         deploy user (e.g. kaurax)
+#   UPCLOUD_SSH_KEY      private key for that user
+#   UPCLOUD_SSH_PORT     optional, defaults to 22
+#
+# The server holds its own .env. This workflow never transmits secrets: it triggers a
+# git pull and a rebuild on the server, which reads the .env already there.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy"
+        required: false
+        default: main
+  push:
+    branches: [main]
+    paths:
+      - "blockchain/**"
+      - "services/**"
+      - "packages/**"
+      - "infra/**"
+      - "docker-compose.yml"
+      - ".github/workflows/deploy.yml"
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: verify before deploying
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.28.0}
+      - uses: actions/setup-node@v4
+        with: {node-version: 20, cache: pnpm}
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  deploy:
+    name: deploy to UpCloud
+    needs: gate
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check the deployment target is configured
+        run: |
+          if [ -z "${{ secrets.UPCLOUD_HOST }}" ]; then
+            echo "::error::UPCLOUD_HOST is not set. Add the deployment secrets before running this workflow."
+            echo "See DEPLOYMENT.md for the full list."
+            exit 1
+          fi
+
+      - name: Configure SSH
+        run: |
+          install -d -m 700 ~/.ssh
+          echo "${{ secrets.UPCLOUD_SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -p "${{ secrets.UPCLOUD_SSH_PORT || 22 }}" -H "${{ secrets.UPCLOUD_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy
+        env:
+          HOST: ${{ secrets.UPCLOUD_HOST }}
+          USER: ${{ secrets.UPCLOUD_USER }}
+          PORT: ${{ secrets.UPCLOUD_SSH_PORT || 22 }}
+          REF: ${{ github.event.inputs.ref || github.sha }}
+        run: |
+          # deploy.sh does the health gating and fails loudly if anything is unhealthy.
+          ssh -i ~/.ssh/id_deploy -p "$PORT" -o BatchMode=yes "$USER@$HOST" bash -se <<REMOTE
+            set -euo pipefail
+            cd ~/kaurax
+            git fetch --all --prune
+            git checkout --detach "$REF"
+            bash infra/scripts/deploy.sh --no-pull
+          REMOTE
+
+      - name: Post-deploy health check
+        env:
+          HOST: ${{ secrets.UPCLOUD_HOST }}
+          USER: ${{ secrets.UPCLOUD_USER }}
+          PORT: ${{ secrets.UPCLOUD_SSH_PORT || 22 }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -p "$PORT" -o BatchMode=yes "$USER@$HOST" \
+            'cd ~/kaurax && docker compose ps --format "table {{.Service}}\t{{.Status}}"'
+
+      - name: Clean up the key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy

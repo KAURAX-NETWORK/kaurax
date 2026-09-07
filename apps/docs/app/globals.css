@@ -1,0 +1,30 @@
+/* The KAURAX design system. Every app in the suite shares it. */
+@import "@kaurax/ui/styles.css";
+
+/* ------------------------------------------------------------- markdown -- */
+.markdown { font-size: 14.5px; line-height: 1.7; }
+.markdown .md-h1 { font-size: 27px; margin: 0 0 16px; font-weight: 650; letter-spacing: -0.02em; }
+.markdown .md-h2 { font-size: 20px; margin: 32px 0 12px; font-weight: 620; padding-top: 18px; border-top: 1px solid var(--border); }
+.markdown .md-h3 { font-size: 16px; margin: 24px 0 10px; font-weight: 600; }
+.markdown .md-h4 { font-size: 14.5px; margin: 20px 0 8px; font-weight: 600; color: var(--text-dim); }
+.markdown .md-p { margin: 0 0 14px; color: var(--text-dim); }
+.markdown .md-p strong, .markdown li strong { color: var(--text); }
+.markdown .md-list { margin: 0 0 16px; padding-left: 22px; color: var(--text-dim); }
+.markdown .md-list li { margin-bottom: 6px; }
+.markdown .md-code {
+  background: var(--bg-inset); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px;
+  line-height: 1.6; margin: 0 0 16px; color: var(--text);
+}
+.markdown .md-inline-code {
+  background: var(--bg-inset); border: 1px solid var(--border); border-radius: 4px;
+  padding: 1px 5px; font-family: var(--mono); font-size: 0.9em; color: var(--text);
+}
+.markdown .md-quote {
+  border-left: 3px solid var(--accent-dim); background: var(--bg-inset);
+  padding: 12px 16px; margin: 0 0 16px; border-radius: 0 6px 6px 0;
+}
+.markdown .md-quote p { margin: 0; color: var(--text-dim); font-size: 13.5px; }
+.markdown .md-hr { border: none; border-top: 1px solid var(--border); margin: 26px 0; }
+.markdown table { margin: 0; }
+.markdown td { white-space: normal; }

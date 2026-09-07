@@ -1,0 +1,28 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+solc_version = "0.8.28"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 999999
+via_ir = false
+bytecode_hash = "none"
+fs_permissions = [{ access = "read-write", path = "./deployments" }]
+
+[profile.default.lint]
+# Hashing here is consensus-critical and mirrored by an off-chain TypeScript
+# implementation; abi.encode is kept for readability and 1:1 auditability.
+exclude_lints = ["asm-keccak256"]
+
+[profile.default.fmt]
+line_length = 110
+tab_width = 4
+bracket_spacing = false
+
+[rpc_endpoints]
+l1 = "${L1_RPC_URL}"
+l2 = "${L2_RPC_URL}"
+kaurax = "${KAURAX_RPC_URL}"

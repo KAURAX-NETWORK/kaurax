@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: verify before release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: {version: stable}
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.28.0}
+      - uses: actions/setup-node@v4
+        with: {node-version: 20, cache: pnpm}
+      - run: pnpm install --frozen-lockfile=false
+      - run: cd blockchain/contracts && forge install foundry-rs/forge-std --no-git && forge test
+      - run: pnpm --filter @kaurax/config build && pnpm test
+      - run: pnpm build
+
+  publish:
+    name: publish SDK and CLI
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.28.0}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm build
+      - name: Publish
+        run: |
+          pnpm --filter @kaurax/sdk publish --access public --no-git-checks
+          pnpm --filter @kaurax/cli publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
+
+  github-release:
+    name: github release
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            KAURAX — an Ethereum Layer-3 settling through an underlying Layer-2.
+
+            **This release has not been audited. KAX has no monetary value.**
+            KAURAX has no fault proof system and a centralized sequencer.
+            See MAINNET_READINESS.md before deploying anything.

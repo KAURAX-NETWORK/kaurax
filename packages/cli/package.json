@@ -1,0 +1,30 @@
+{
+  "name": "@kaurax/cli",
+  "version": "0.1.0",
+  "description": "kaurax \u2014 command line interface for the KAURAX Ethereum Layer-3",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "kaurax": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kaurax/sdk": "workspace:*",
+    "dotenv": "^16.4.7",
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

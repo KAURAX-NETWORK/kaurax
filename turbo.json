@@ -1,0 +1,26 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "globalDependencies": [".env.example", "tsconfig.base.json"],
+  "globalEnv": ["NODE_ENV", "CI"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": [
+        "NEXT_PUBLIC_KAURAX_RPC_URL",
+        "NEXT_PUBLIC_KAURAX_WS_URL",
+        "NEXT_PUBLIC_KAURAX_CHAIN_ID",
+        "NEXT_PUBLIC_KAURAX_EXPLORER_URL",
+        "NEXT_PUBLIC_KAURAX_API_URL",
+        "NEXT_PUBLIC_L1_RPC_URL",
+        "NEXT_PUBLIC_L2_RPC_URL"
+      ]
+    },
+    "typecheck": {"dependsOn": ["^build"], "outputs": []},
+    "lint": {"outputs": []},
+    "test": {"dependsOn": ["^build"], "outputs": []},
+    "dev": {"cache": false, "persistent": true},
+    "start": {"dependsOn": ["build"], "cache": false, "persistent": true}
+  }
+}

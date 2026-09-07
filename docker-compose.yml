@@ -1,0 +1,238 @@
+# KAURAX server stack — everything that must persist lives here.
+#
+#   Internet ──► Nginx (80/443) ──► rpc.kaurax   → kaurax-l3:8420
+#                                └► api.kaurax   → kaurax-api:4000
+#                                └► indexer      → kaurax-indexer:7301  (restricted)
+#
+# Frontends are NOT here: they deploy to Vercel. See DEPLOYMENT.md.
+#
+# Port exposure policy: only Nginx publishes to the host. PostgreSQL, the execution
+# engine, the indexer and the metrics endpoints are reachable only on the internal Docker
+# network. The execution engine in particular exposes administrative RPC methods and must
+# never be published.
+#
+#   docker compose up -d      docker compose ps      docker compose logs -f
+#   docker compose restart    docker compose down
+
+name: kaurax
+
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "5"}
+
+services:
+  # ------------------------------------------------------------- database --
+  postgres:
+    image: postgres:16-alpine
+    container_name: kaurax-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-kaurax}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Deliberately not published to the host. Reachable only on the kaurax network.
+    expose: ["5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+    networks: [kaurax]
+
+  # ------------------------------------------------- L3 execution engine --
+  # Exposes administrative RPC (anvil_*, evm_*). NEVER publish this port.
+  # kaurax-l3 is the only thing that talks to it, and the public RPC blocks those methods.
+  l3-engine:
+    image: ghcr.io/foundry-rs/foundry:v1.5.1
+    container_name: kaurax-l3-engine
+    restart: unless-stopped
+    entrypoint: ["anvil"]
+    command:
+      - --host=0.0.0.0
+      - --port=18420
+      - --chain-id=${KAURAX_CHAIN_ID:-8420}
+      - --no-mining
+      - --order=fifo
+      - --gas-limit=${KAURAX_GAS_LIMIT:-30000000}
+      - --base-fee=1000000000
+      - --state=/data/state.json
+      - --state-interval=10
+    volumes:
+      - l3-state:/data
+    expose: ["18420"]
+    healthcheck:
+      test: ["CMD", "cast", "chain-id", "--rpc-url", "http://127.0.0.1:18420"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+    networks: [kaurax]
+
+  # ---------------------------------------------------------- bootstrap --
+  # Deploys settlement contracts to the L2 and installs the L3 predeploys, then exits.
+  bootstrap:
+    build:
+      context: .
+      dockerfile: infra/docker/bootstrap/Dockerfile
+    container_name: kaurax-bootstrap
+    restart: "no"
+    env_file: [.env]
+    environment:
+      KAURAX_ENGINE_RPC_URL: http://l3-engine:18420
+    volumes:
+      - contract-deployments:/repo/blockchain/contracts/deployments
+    depends_on:
+      l3-engine: {condition: service_healthy}
+    logging: *logging
+    networks: [kaurax]
+
+  # --------------------------------------------------------- KAURAX node --
+  kaurax-l3:
+    build:
+      context: .
+      dockerfile: infra/docker/l3/Dockerfile
+    container_name: kaurax-l3
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      KAURAX_ENGINE_RPC_URL: http://l3-engine:18420
+      KAURAX_RPC_URL: http://0.0.0.0:8420
+      KAURAX_WS_URL: ws://0.0.0.0:8421
+    volumes:
+      - contract-deployments:/app/blockchain/contracts/deployments:ro
+    expose: ["8420", "8421", "7300"]
+    depends_on:
+      bootstrap: {condition: service_completed_successfully}
+    logging: *logging
+    networks: [kaurax]
+
+  # ------------------------------------------------------------- indexer --
+  indexer:
+    build:
+      context: .
+      dockerfile: infra/docker/indexer/Dockerfile
+    container_name: kaurax-indexer
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kaurax}
+      KAURAX_RPC_URL: http://kaurax-l3:8420
+    expose: ["7301"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      kaurax-l3: {condition: service_healthy}
+    logging: *logging
+    networks: [kaurax]
+
+  # ----------------------------------------------------------------- API --
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api/Dockerfile
+    container_name: kaurax-api
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-kaurax}
+      KAURAX_RPC_URL: http://kaurax-l3:8420
+      INDEXER_HEALTH_URL: http://indexer:7301/health
+      API_HOST: 0.0.0.0
+    expose: ["4000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      kaurax-l3: {condition: service_healthy}
+    logging: *logging
+    networks: [kaurax]
+
+  # --------------------------------------------------------------- Nginx --
+  # The only service that publishes ports to the host.
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: kaurax-nginx
+    restart: unless-stopped
+    environment:
+      KAURAX_DOMAIN: ${KAURAX_DOMAIN:?set KAURAX_DOMAIN in .env, e.g. kaurax.com}
+      # Substitute only this variable, so nginx's own $host / $remote_addr survive.
+      NGINX_ENVSUBST_FILTER: "KAURAX_DOMAIN"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Templates, not conf.d: the image runs envsubst over these at start so that
+      # ${KAURAX_DOMAIN} becomes the real domain. Mounting conf.d directly would leave the
+      # literal string "${KAURAX_DOMAIN}" as the server_name.
+      - ./infra/nginx/templates:/etc/nginx/templates:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
+    depends_on: [api, kaurax-l3]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+    networks: [kaurax]
+
+  # ------------------------------------------------------------ TLS certs --
+  # Renews Let's Encrypt certificates. Does nothing until certbot has been run once
+  # interactively — see infra/scripts/enable-tls.sh.
+  certbot:
+    image: certbot/certbot:latest
+    container_name: kaurax-certbot
+    restart: unless-stopped
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    entrypoint: >
+      sh -c 'trap exit TERM;
+             while :; do certbot renew --webroot -w /var/www/certbot --quiet;
+             sleep 12h & wait $${!}; done'
+    logging: *logging
+    networks: [kaurax]
+
+  # ---------------------------------------------------------- monitoring --
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    container_name: kaurax-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    expose: ["9090"]
+    logging: *logging
+    networks: [kaurax]
+
+  grafana:
+    image: grafana/grafana:11.5.1
+    container_name: kaurax-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+    volumes:
+      - ./infra/monitoring/grafana:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    # Bound to loopback on the host: reach it over an SSH tunnel, not the internet.
+    ports: ["127.0.0.1:3001:3000"]
+    depends_on: [prometheus]
+    logging: *logging
+    networks: [kaurax]
+
+volumes:
+  postgres-data:
+  l3-state:
+  contract-deployments:
+  prometheus-data:
+  grafana-data:
+  certbot-webroot:
+  certbot-certs:
+
+networks:
+  kaurax:
+    driver: bridge

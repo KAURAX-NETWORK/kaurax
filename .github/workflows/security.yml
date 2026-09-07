@@ -1,0 +1,80 @@
+name: security
+
+on:
+  push: {branches: [main]}
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  secrets:
+    name: no committed secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      # A committed .env is the failure mode that actually happens. Fail hard on it.
+      - name: Reject committed environment files
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$'; then
+            echo "::error::An environment file is tracked in git. Remove it and rotate every key it contained."
+            exit 1
+          fi
+          echo "no tracked .env files"
+
+      # .env.example intentionally carries the public Anvil devnet keys. Anything else
+      # that looks like a key outside that file is a finding.
+      - name: Scan for private keys outside .env.example
+        run: |
+          hits=$(grep -rInE '\b0x[0-9a-fA-F]{64}\b' \
+                  --include='*.ts' --include='*.tsx' --include='*.js' --include='*.mjs' \
+                  --include='*.sol' --include='*.sh' --include='*.yml' --include='*.json' \
+                  --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=out \
+                  --exclude-dir=dist --exclude-dir=.next --exclude-dir=lib \
+                  . | grep -vE '\.env\.example|/test/|/tests/|blockchain/contracts/out/' || true)
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo "::warning::32-byte hex literals found outside .env.example. Confirm none is a real key."
+          fi
+
+  dependencies:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.28.0}
+      - uses: actions/setup-node@v4
+        with: {node-version: 20, cache: pnpm}
+      - run: pnpm install --frozen-lockfile=false
+      # Advisory: advisories land in transitive dependencies daily and are outside this
+      # repository's control. A critical advisory is still a hard stop below.
+      - run: pnpm audit --audit-level high
+        continue-on-error: true
+      - name: Fail on critical advisories
+        run: pnpm audit --audit-level critical
+
+  slither:
+    name: slither static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: {version: stable}
+      - run: cd blockchain/contracts && forge install foundry-rs/forge-std --no-git && forge build
+      # A hard gate. This analyses code we wrote and control, so a high-severity finding
+      # is a reason to stop, not a notification. Suppress a specific false positive with a
+      # slither-disable-next-line comment and a justification, never by weakening the gate.
+      - uses: crytic/slither-action@v0.4.0
+        with:
+          target: blockchain/contracts/
+          slither-args: --exclude-dependencies --exclude naming-convention
+          fail-on: high

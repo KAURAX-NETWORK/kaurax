@@ -1,0 +1,23 @@
+{
+  "name": "@kaurax/tests",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "acceptance": "tsx acceptance.ts",
+    "apps": "tsx apps-smoke.ts",
+    "load": "tsx load.ts",
+    "chaos": "bash chaos.sh"
+  },
+  "dependencies": {
+    "@kaurax/l3": "workspace:*",
+    "dotenv": "^16.4.7",
+    "viem": "^2.56.3",
+    "@kaurax/types": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
+}

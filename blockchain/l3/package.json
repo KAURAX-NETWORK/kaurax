@@ -1,0 +1,37 @@
+{
+  "name": "@kaurax/l3",
+  "version": "0.1.0",
+  "description": "KAURAX L3 rollup node: sequencer, derivation, batcher, proposer and RPC",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "kaurax-node": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@kaurax/config": "workspace:*",
+    "viem": "^2.56.3",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@kaurax/signer": "workspace:*",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

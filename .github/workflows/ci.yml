@@ -1,0 +1,165 @@
+name: ci
+
+on:
+  push: {branches: [main]}
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.28.0}
+      - uses: actions/setup-node@v4
+        with: {node-version: 20, cache: pnpm}
+
+      - run: pnpm install --frozen-lockfile=false
+
+      # turbo builds dependencies first, so packages see each other's declarations.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build all packages and apps
+        run: pnpm build
+
+  contracts:
+    name: contracts
+    runs-on: ubuntu-latest
+    defaults:
+      run: {working-directory: blockchain/contracts}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: {version: stable}
+      - run: forge install foundry-rs/forge-std --no-git
+      - run: forge build --sizes
+      - run: forge fmt --check
+      - run: forge test -vv
+
+  integration:
+    name: devnet end-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: kaurax
+          POSTGRES_PASSWORD: kaurax_ci
+          POSTGRES_DB: kaurax
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U kaurax"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: {version: stable}
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.28.0}
+      - uses: actions/setup-node@v4
+        with: {node-version: 20, cache: pnpm}
+      - run: pnpm install --frozen-lockfile=false
+
+      # Brings up L1, L2, settlement contracts, KAURAX genesis and kaurax-node.
+      - name: Start the KAURAX devnet
+        run: ./infra/scripts/devnet/start.sh
+
+      - name: End-to-end acceptance test
+        run: ./tests/acceptance.sh
+
+      # The indexer and API are verified against the same live chain the acceptance test
+      # just exercised, so this covers the real data path rather than a fixture.
+      - name: Start the indexer and API
+        env:
+          DATABASE_URL: postgresql://kaurax:kaurax_ci@127.0.0.1:5432/kaurax
+        run: |
+          set -a; . ./.env; set +a
+          export DATABASE_URL=postgresql://kaurax:kaurax_ci@127.0.0.1:5432/kaurax
+          pnpm --filter @kaurax/indexer build && pnpm --filter @kaurax/api build
+          node services/indexer/dist/index.js > /tmp/indexer.log 2>&1 &
+          sleep 8
+          node services/api/dist/index.js > /tmp/api.log 2>&1 &
+          sleep 8
+
+      - name: Verify the API against live chain data
+        run: ./tests/api-smoke.sh
+
+      # Exercises Names, Swap and Launchpad through the same ABIs the frontends use.
+      - name: Verify the application contracts
+        run: ./tests/apps-smoke.sh
+
+      - name: Logs on failure
+        if: failure()
+        run: |
+          echo "--- kaurax-node ---"; tail -100 .devnet/kaurax-node.log || true
+          echo "--- indexer ---";     tail -60  /tmp/indexer.log        || true
+          echo "--- api ---";         tail -60  /tmp/api.log            || true
+
+      - name: Stop the devnet
+        if: always()
+        run: ./infra/scripts/devnet/stop.sh
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: {version: stable}
+      - uses: pnpm/action-setup@v4
+        with: {version: 10.28.0}
+      - uses: actions/setup-node@v4
+        with: {node-version: 20, cache: pnpm}
+      - run: pnpm install --frozen-lockfile=false
+
+      # Contract coverage is the number that matters most: these are the lines that hold
+      # user funds. Reported, and gated on the settlement and governance contracts, which
+      # are the ones an attacker reaches.
+      - name: Contract coverage
+        working-directory: blockchain/contracts
+        run: |
+          forge install foundry-rs/forge-std --no-git
+          forge coverage --report summary --report lcov | tee coverage.txt
+
+      - name: Enforce coverage on security-critical contracts
+        working-directory: blockchain/contracts
+        run: |
+          # Parses forge's summary table. A contract in this list must stay above 80% lines.
+          FAILED=0
+          for FILE in KauraxPortal KauraxL2OutputOracle KauraxMultisig KauraxTimelock MerkleTree; do
+            LINE=$(grep -E "^\| src/.*${FILE}\.sol" coverage.txt || true)
+            if [ -z "$LINE" ]; then
+              echo "::warning::no coverage row found for ${FILE}.sol"
+              continue
+            fi
+            PCT=$(echo "$LINE" | awk -F'|' '{print $3}' | grep -oE '[0-9]+\.[0-9]+' | head -1)
+            echo "${FILE}: ${PCT}% lines"
+            awk -v p="$PCT" 'BEGIN{exit !(p+0 < 80)}' && {
+              echo "::error::${FILE}.sol line coverage ${PCT}% is below the 80% floor"
+              FAILED=1
+            }
+          done
+          exit $FAILED
+
+      - name: Node unit-test coverage
+        run: pnpm --filter @kaurax/l3 exec vitest run --coverage.enabled --coverage.reporter=text || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: |
+            blockchain/contracts/coverage.txt
+            blockchain/contracts/lcov.info
+          retention-days: 14

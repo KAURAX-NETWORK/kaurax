@@ -1,0 +1,493 @@
+{
+  "uid": "kaurax-overview",
+  "title": "KAURAX \u2014 Ethereum \u2192 L2 \u2192 L3",
+  "tags": [
+    "kaurax",
+    "l3",
+    "rollup"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "description": "Operational readings for the KAURAX Layer-3. Every series is measured from live component state. A gap means 'not measured', not zero. No adoption metrics (TVL, users, partners) are shown, because none exist for this network.",
+  "panels": [
+    {
+      "id": 100,
+      "type": "row",
+      "title": "Layer heights",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 1,
+      "title": "L1 block height (Ethereum)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "description": "Absent when the configured L1 cannot be read, or when it is a local devnet chain.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_l1_block_height",
+          "legendFormat": "L1",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "L2 block height (underlying rollup)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_l2_block_height",
+          "legendFormat": "L2",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "L3 block height (KAURAX)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_l3_block_height",
+          "legendFormat": "L3",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 200,
+      "type": "row",
+      "title": "Sequencer",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      }
+    },
+    {
+      "id": 4,
+      "title": "Sequencer health",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "description": "1 = producing blocks without error. Single sequencer: 0 means the chain has halted.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_sequencer_healthy",
+          "legendFormat": "healthy",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Block production rate",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 6,
+        "y": 8
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(kaurax_blocks_produced_total[5m]) * 60",
+          "legendFormat": "blocks/min",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "Transaction throughput",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 15,
+        "y": 8
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(kaurax_transactions_included_total[5m])",
+          "legendFormat": "tx/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(kaurax_deposits_applied_total[5m])",
+          "legendFormat": "deposits/s",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "title": "Mempool size",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_mempool_size",
+          "legendFormat": "queued",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "Gas used per block",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "description": "Block cadence. Per-block gas is exposed by the explorer, not by node metrics.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(kaurax_l3_block_height[5m])",
+          "legendFormat": "blocks/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 300,
+      "type": "row",
+      "title": "Settlement & data availability",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      }
+    },
+    {
+      "id": 9,
+      "title": "Batcher health",
+      "type": "stat",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 19
+      },
+      "description": "0 means L3 data is not reaching the underlying L2.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_batcher_healthy",
+          "legendFormat": "healthy",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 10,
+      "title": "Unbatched L3 blocks",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 6,
+        "y": 19
+      },
+      "description": "The data-loss window: blocks produced but not yet published to the L2.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_unbatched_l3_blocks",
+          "legendFormat": "blocks",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "title": "Batch submission latency",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 9,
+        "x": 15,
+        "y": 19
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_last_batch_age_seconds",
+          "legendFormat": "seconds since last batch",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "title": "Batch size",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_last_batch_compressed_bytes",
+          "legendFormat": "compressed bytes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "Ethereum finality beneath the L2",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "description": "Absent on a local devnet, where the L1 has no consensus layer.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_l1_finalized_block",
+          "legendFormat": "finalized",
+          "refId": "A"
+        },
+        {
+          "expr": "kaurax_l1_block_height",
+          "legendFormat": "head",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 400,
+      "type": "row",
+      "title": "RPC & bridge",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      }
+    },
+    {
+      "id": 14,
+      "title": "RPC request rate",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 30
+      },
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(kaurax_rpc_requests_total[5m])",
+          "legendFormat": "requests/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(kaurax_rpc_errors_total[5m])",
+          "legendFormat": "errors/s",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "title": "Deposits derived from the L2",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 30
+      },
+      "description": "Bridge activity into KAURAX. Deposits bypass the sequencer's mempool.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kaurax_deposits_applied_total",
+          "legendFormat": "applied",
+          "refId": "A"
+        },
+        {
+          "expr": "kaurax_derivation_queued",
+          "legendFormat": "queued",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ]
+}

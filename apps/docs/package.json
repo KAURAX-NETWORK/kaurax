@@ -1,0 +1,29 @@
+{
+  "name": "@kaurax/app-docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Documentation for the KAURAX Layer-3",
+  "scripts": {
+    "dev": "next dev -p 3018",
+    "build": "next build",
+    "start": "next start -p 3018",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "echo \"no unit tests in @kaurax/app-docs; renders the repository's own docs/\"",
+    "clean": "rm -rf .next"
+  },
+  "dependencies": {
+    "@kaurax/types": "workspace:*",
+    "@kaurax/ui": "workspace:*",
+    "next": "^16.3.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  }
+}

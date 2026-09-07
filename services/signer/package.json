@@ -1,0 +1,30 @@
+{
+  "name": "@kaurax/signer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "KAURAX reference signing service — holds operator keys so the node does not",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "kaurax-signer": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "viem": "^2.56.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
