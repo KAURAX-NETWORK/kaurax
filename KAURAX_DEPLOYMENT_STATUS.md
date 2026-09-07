@@ -9,6 +9,34 @@
 
 ---
 
+## Live deployment
+
+| | Where | State |
+|---|---|---|
+| Frontends (10) | `https://kaurax.network` and `/explorer`, `/wallet`, `/bridge`, `/pay`, `/ai`, `/swap`, `/names`, `/launchpad`, `/docs` | ✅ all 200, served as Next.js zones from one domain |
+| KAURAX RPC | `http://87.58.152.42:8880` | ✅ chain 8420, producing, batching and proposing |
+| Backend API | `http://87.58.152.42:8880/api` | ✅ rpc, database and indexer all healthy |
+| KAURAX AI | `/api/ai/chat` | ✅ via xKiro, free-tier model, key server-side only |
+| Indexer | internal | ✅ 0 blocks behind head |
+| Settlement contracts | L2 chain 8415 | ✅ portal, oracle, batch inbox, bridge |
+| App contracts | KAURAX chain 8420 | ✅ Names, WKAX, SwapFactory, SwapRouter, Launchpad |
+| TLS | — | ❌ no DNS records for rpc/ws/api, so no certificate |
+| WebSocket | — | ❌ not reachable publicly; Vercel rewrites do not carry WS |
+| Subdomains | `explorer.kaurax.network` etc. | ⚠️ assigned in Vercel, no DNS records at the registrar |
+| Key management | server `.env` | ⚠️ local keys, not the signing service |
+| Fault proofs | — | ❌ not implemented; output roots are trusted |
+
+**What this deployment is.** A devnet whose L1 and L2 stand-ins run on the same host. The
+chains are real EVM chains, the settlement contracts are really deployed, and every KAURAX
+block is really batched to the L2 beneath it and recoverable from its calldata. What differs
+from a public testnet is who operates the L2 — not whether the mechanism is real.
+
+**What it is not.** It is not a public testnet, not audited, and not carrying value. KAX has
+no monetary value. Ports 80 and 443 are blocked by UpCloud on trial accounts, which is why
+the endpoint is on 8880.
+
+---
+
 ## Verification summary
 
 | Suite | Result | What it exercises |
