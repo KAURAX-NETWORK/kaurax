@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {getBlock, getBlockByHash, getNetworkStatus, type RpcTransaction, type Hex} from "@/lib/rpc";
 import {formatUnits, isoTime, timeAgo, withThousands, gwei} from "@/lib/format";
 import {Badge, Empty, Row} from "@/components/ui";
@@ -112,8 +113,8 @@ export default async function BlockPage({params}: {params: Promise<{number: stri
       </div>
 
       <div style={{marginTop: 18, display: "flex", gap: 16}}>
-        {blockNumber > 0n ? <a href={`/block/${(blockNumber - 1n).toString()}`}>← Previous block</a> : null}
-        <a href={`/block/${(blockNumber + 1n).toString()}`}>Next block →</a>
+        {blockNumber > 0n ? <Link href={`/block/${(blockNumber - 1n).toString()}`}>← Previous block</Link> : null}
+        <Link href={`/block/${(blockNumber + 1n).toString()}`}>Next block →</Link>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {getRecentBlocks, getBlockNumber} from "@/lib/rpc";
 import {timeAgo, withThousands, isoTime} from "@/lib/format";
 import {Empty} from "@/components/ui";
@@ -61,7 +62,7 @@ export default async function BlocksPage({searchParams}: {searchParams: Promise<
 
       {hasMore ? (
         <div style={{marginTop: 16}}>
-          <a href={`/blocks?before=${(oldest - 1n).toString()}`}>← Older blocks</a>
+          <Link href={`/blocks?before=${(oldest - 1n).toString()}`}>← Older blocks</Link>
         </div>
       ) : null}
     </div>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 /**
  * KAURAX overview.
  *
@@ -166,7 +167,7 @@ export default async function Home() {
           <div>
             <div className="section-head">
               <h2>Latest blocks</h2>
-              <a href="/blocks">View all →</a>
+              <Link href="/blocks">View all →</Link>
             </div>
             {blocks.length === 0 ? (
               <Empty>{NO_DATA}</Empty>
@@ -199,7 +200,7 @@ export default async function Home() {
           <div>
             <div className="section-head">
               <h2>Latest transactions</h2>
-              <a href="/transactions">View all →</a>
+              <Link href="/transactions">View all →</Link>
             </div>
             {txs.length === 0 ? (
               <Empty>No transactions in the recent block window.</Empty>

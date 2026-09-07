@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type {Metadata} from "next";
 import "./globals.css";
 import {config} from "@/lib/config";
@@ -26,12 +27,14 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <header className="site-header">
           <div className="container inner">
             <div className="brand">
+              {/* Deliberately a raw anchor: this leaves the explorer for the KAURAX
+                  home page at the domain root, so it must NOT take the basePath. */}
               <a className="mark" href="/">KAURAX</a>
               <span className="layer">L3</span>
             </div>
             <nav className="nav">
               {NAV.map(([href, label]) => (
-                <a key={href} href={href}>{label}</a>
+                <Link key={href} href={href}>{label}</Link>
               ))}
             </nav>
           </div>
