@@ -38,6 +38,14 @@ COPY --from=build --chown=kaurax:kaurax /repo/blockchain/l3       ./blockchain/l
 COPY --from=build --chown=kaurax:kaurax /repo/package.json        ./
 COPY --from=build --chown=kaurax:kaurax /repo/pnpm-workspace.yaml ./
 
+# The write-ahead log and the derivation checkpoint live here, and both must survive a
+# restart: the WAL holds blocks that are sealed but not yet batched, and the checkpoint is
+# the only durable record of which L2 deposits have already been applied. Created in the
+# image and owned by the runtime user, so that an empty named volume mounted over it
+# inherits that ownership instead of arriving root-owned and unwritable.
+RUN mkdir -p /data && chown kaurax:kaurax /data
+VOLUME ["/data"]
+
 USER kaurax
 
 # 8420 JSON-RPC, 8421 WebSocket, 7300 metrics.

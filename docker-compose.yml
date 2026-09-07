@@ -103,6 +103,11 @@ services:
       KAURAX_WS_URL: ws://0.0.0.0:8421
     volumes:
       - contract-deployments:/app/blockchain/contracts/deployments:ro
+      # Sequencer write-ahead log and derivation checkpoint. Losing this volume does not
+      # lose the chain — every batched block is recoverable from L2 calldata — but it does
+      # lose blocks sealed since the last batch, and it leaves the node unable to tell an
+      # already-applied deposit from a new one. It refuses to start rather than guess.
+      - l3-data:/data
     expose: ["8420", "8421", "7300"]
     depends_on:
       bootstrap: {condition: service_completed_successfully}
@@ -226,6 +231,7 @@ services:
 
 volumes:
   postgres-data:
+  l3-data:
   l3-state:
   contract-deployments:
   prometheus-data:
