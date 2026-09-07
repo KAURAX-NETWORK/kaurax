@@ -31,10 +31,10 @@
     "env": {
       "NEXT_PUBLIC_KAURAX_DOMAIN": "kaurax.network",
       "NEXT_PUBLIC_KAURAX_CHAIN_ID": "8420",
-      "NEXT_PUBLIC_KAURAX_RPC_URL": "https://www.kaurax.network/rpc",
-      "NEXT_PUBLIC_KAURAX_API_URL": "https://www.kaurax.network",
-      "NEXT_PUBLIC_KAURAX_EXPLORER_URL": "https://www.kaurax.network/explorer",
-      "NEXT_PUBLIC_EXPLORER_URL": "https://www.kaurax.network/explorer"
+      "NEXT_PUBLIC_KAURAX_RPC_URL": "https://kaurax.network/rpc",
+      "NEXT_PUBLIC_KAURAX_API_URL": "https://kaurax.network",
+      "NEXT_PUBLIC_KAURAX_EXPLORER_URL": "https://kaurax.network/explorer",
+      "NEXT_PUBLIC_EXPLORER_URL": "https://kaurax.network/explorer"
     }
   }
 }
