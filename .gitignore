@@ -55,3 +55,7 @@ blockchain/contracts/lib/
 apps/docs/lib/docs-content.ts
 
 .DS_Store
+
+# Foundry build output from the standalone example project
+examples/basic-contract/out/
+examples/basic-contract/cache/

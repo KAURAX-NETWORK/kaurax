@@ -19,6 +19,7 @@
     "devnet": "./infra/scripts/devnet/start.sh",
     "devnet:stop": "./infra/scripts/devnet/stop.sh",
     "devnet:status": "./infra/scripts/devnet/status.sh",
+    "kaurax": "node packages/cli/dist/index.js",
     "sweep": "./infra/scripts/security-sweep.sh",
     "clean": "turbo run clean && rm -rf .devnet node_modules/.cache",
     "test:apps": "./tests/apps-smoke.sh",

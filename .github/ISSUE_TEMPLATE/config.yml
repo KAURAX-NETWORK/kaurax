@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/KAURAX-NETWORK/kaurax/blob/main/SECURITY.md
+    about: Report privately. Do not open a public issue.
+  - name: Known limitations
+    url: https://github.com/KAURAX-NETWORK/kaurax/blob/main/docs/SECURITY_STATUS.md
+    about: No fault proofs, a guardian-decided dispute, no audit, one sequencer — all known.

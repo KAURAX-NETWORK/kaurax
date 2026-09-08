@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>KAURAX — basic frontend</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { color-scheme: light dark; --line: color-mix(in oklab, currentColor 15%, transparent); }
+  body { font: 15px/1.55 ui-sans-serif, system-ui, sans-serif; max-width: 46rem; margin: 3rem auto; padding: 0 1.25rem; }
+  h1 { font-size: 1.4rem; margin-bottom: .2rem; }
+  p.sub { opacity: .7; margin-top: 0; }
+  button { font: inherit; padding: .5rem .9rem; border-radius: .4rem; border: 1px solid var(--line); background: transparent; cursor: pointer; }
+  button:hover { background: color-mix(in oklab, currentColor 8%, transparent); }
+  table { border-collapse: collapse; width: 100%; margin-top: 1.25rem; }
+  td { padding: .4rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { opacity: .65; white-space: nowrap; width: 11rem; }
+  code, td:last-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .87em; word-break: break-all; }
+  .note { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); opacity: .7; font-size: .9em; }
+</style>
+
+<h1>KAURAX — basic frontend</h1>
+<p class="sub">No build step, no dependencies. Open this file in a browser.</p>
+
+<button id="connect">Connect wallet</button>
+<button id="refresh">Refresh chain data</button>
+
+<table id="out"></table>
+
+<div class="note">
+  <p>Reads go straight to the JSON-RPC endpoint with <code>fetch</code>. Connecting a wallet
+  uses <code>window.ethereum</code> directly. Both are deliberately dependency-free: an
+  example whose first instruction is “install these four packages” teaches the packages, not
+  the chain.</p>
+  <p>KAX is a testnet gas token with <strong>no monetary value</strong>.</p>
+</div>
+
+<script type="module">
+  const RPC = new URLSearchParams(location.search).get("rpc") ?? "https://kaurax.network/rpc";
+  const CHAIN_ID = 8420;
+  const rows = document.getElementById("out");
+
+  const show = (label, value) => {
+    const tr = document.createElement("tr");
+    const a = document.createElement("td");
+    const b = document.createElement("td");
+    a.textContent = label;
+    b.textContent = value;                 // textContent, never innerHTML: chain data is untrusted
+    tr.append(a, b);
+    rows.append(tr);
+  };
+
+  async function rpc(method, params = []) {
+    const res = await fetch(RPC, {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({jsonrpc: "2.0", id: 1, method, params}),
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(`${method}: ${json.error.message}`);
+    return json.result;
+  }
+
+  async function refresh() {
+    rows.replaceChildren();
+    show("rpc", RPC);
+    try {
+      const [chainId, head, gasPrice] = await Promise.all([
+        rpc("eth_chainId"), rpc("eth_blockNumber"), rpc("eth_gasPrice"),
+      ]);
+      show("chain id", Number(BigInt(chainId)));
+      show("head block", Number(BigInt(head)).toLocaleString());
+      show("gas price", `${Number(BigInt(gasPrice)) / 1e9} gwei`);
+
+      const block = await rpc("eth_getBlockByNumber", [head, false]);
+      show("block hash", block.hash);
+      show("timestamp", new Date(Number(BigInt(block.timestamp)) * 1000).toISOString());
+      show("transactions", block.transactions.length);
+    } catch (err) {
+      show("error", err.message);
+    }
+  }
+
+  document.getElementById("refresh").onclick = refresh;
+
+  document.getElementById("connect").onclick = async () => {
+    if (!window.ethereum) return show("wallet", "no injected wallet found");
+    try {
+      const [account] = await window.ethereum.request({method: "eth_requestAccounts"});
+      show("account", account);
+
+      const current = await window.ethereum.request({method: "eth_chainId"});
+      if (Number(BigInt(current)) !== CHAIN_ID) {
+        // wallet_addEthereumChain is idempotent: it switches if the chain is already known.
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: "0x" + CHAIN_ID.toString(16),
+            chainName: "KAURAX Testnet",
+            nativeCurrency: {name: "KAURAX", symbol: "KAX", decimals: 18},
+            rpcUrls: [RPC],
+            blockExplorerUrls: ["https://kaurax.network/explorer"],
+          }],
+        });
+      }
+      show("balance", `${Number(BigInt(await rpc("eth_getBalance", [account, "latest"]))) / 1e18} KAX`);
+    } catch (err) {
+      show("wallet error", err.message);
+    }
+  };
+
+  refresh();
+</script>

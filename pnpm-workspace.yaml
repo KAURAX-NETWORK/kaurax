@@ -2,5 +2,6 @@ packages:
   - "apps/*"
   - "services/*"
   - "packages/*"
+  - "examples/*"
   - "blockchain/l3"
   - "tests"

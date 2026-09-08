@@ -1,0 +1,24 @@
+name: Documentation
+description: Documentation is wrong, missing, or describes something that does not exist
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Documentation that overstates what the code does is a **bug**, and the most valuable
+        kind to report. Several have been found this way: a quickstart that was not runnable,
+        an execution engine that did not exist, a monitoring target that never resolved.
+  - type: input
+    id: file
+    attributes: {label: File, placeholder: docs/FAULT_PROOFS.md}
+    validations: {required: true}
+  - type: textarea
+    id: says
+    attributes: {label: What it says}
+    validations: {required: true}
+  - type: textarea
+    id: reality
+    attributes:
+      label: What the code does
+      description: A file and line, or a command and its output.
+    validations: {required: true}

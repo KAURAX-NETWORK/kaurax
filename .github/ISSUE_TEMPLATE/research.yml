@@ -1,0 +1,32 @@
+name: Research
+description: A design question, mostly about fault proofs and decentralization
+labels: [research]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start from [docs/FAULT_PROOFS.md](../../docs/FAULT_PROOFS.md) and
+        [docs/FAULT_PROOF_DESIGN.md](../../docs/FAULT_PROOF_DESIGN.md) — the register there
+        says which of the 31 design elements exist and which do not.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Fault proofs — execution model
+        - Fault proofs — verifier or trace commitments
+        - Fault proofs — dispute protocol
+        - Sequencer decentralization
+        - Data availability
+        - Economics and bond sizing
+        - Other
+    validations: {required: true}
+  - type: textarea
+    id: question
+    attributes: {label: The question}
+    validations: {required: true}
+  - type: textarea
+    id: prior
+    attributes:
+      label: Prior art
+      description: Cannon, WAVM, published papers. Do not paste proprietary code.

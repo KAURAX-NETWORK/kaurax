@@ -1,0 +1,18 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+solc_version = "0.8.28"
+# forge-std normally comes from `forge install foundry-rs/forge-std`, which writes lib/.
+# This example reuses the copy already in the repository so it runs from a fresh clone with
+# no network access. `allow_paths` is needed because solc refuses to read sources outside the
+# project directory unless told otherwise.
+#
+# Copying this example out of the repository? Delete these two lines and run:
+#   forge install foundry-rs/forge-std
+remappings = ["forge-std/=../../blockchain/contracts/lib/forge-std/src/"]
+allow_paths = ["../../blockchain/contracts/lib"]
+
+[rpc_endpoints]
+kaurax = "${KAURAX_RPC_URL}"

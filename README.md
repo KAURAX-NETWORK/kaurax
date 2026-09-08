@@ -11,8 +11,11 @@ anything.
 > KAURAX is a **testnet**. KAX has no monetary value and none is planned in this repository.
 >
 > - **The sequencer is trusted.** One operator orders transactions.
-> - **There is no fault proof verifier.** Output roots are accepted because the proposer key
->   signed them, not because anything checked them.
+> - **There is no fault proof over KAURAX execution.** Output roots are accepted because the
+>   proposer key signed them, not because anything checked them. A working one-step verifier
+>   does exist, for a documented EVM subset, and is deliberately **not** connected to
+>   settlement — KAURAX blocks do not run on that subset.
+>   [docs/FAULT_PROOFS.md](docs/FAULT_PROOFS.md) states the gap precisely.
 > - **There has been no external audit.**
 >
 > A 2-of-3 multisig resolves disputes. Honest summary: *funds are safe if at least one
@@ -50,14 +53,24 @@ anything.
 ## Try it
 
 ```bash
+pnpm install
 pnpm --filter @kaurax/cli build
+
 export KAURAX_RPC_URL=https://kaurax.network/rpc
 export KAURAX_API_URL=https://kaurax.network
 export KAURAX_PASSPHRASE='choose-something'
 
-kaurax wallet create mykey
-kaurax faucet
-kaurax wallet send 0xRecipient 1
+pnpm kaurax wallet create mykey
+pnpm kaurax faucet
+pnpm kaurax wallet send 0xRecipient 1
+```
+
+Building the CLI does not put `kaurax` on your `PATH` — this file used to say it did, and a
+new developer following it hit `command not found` on the third line. `pnpm kaurax` runs the
+built binary from anywhere in the repository. To get the bare command, link it once:
+
+```bash
+pnpm --filter @kaurax/cli exec npm link    # then: kaurax network status
 ```
 
 ### MetaMask

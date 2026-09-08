@@ -1,0 +1,15 @@
+{
+  "name": "@kaurax/example-hello-world",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Deploy a contract to KAURAX and call it",
+  "scripts": {
+    "start": "node deploy.mjs",
+    "build": "echo \"nothing to build; run 'pnpm start' against a node\"",
+    "test": "echo \"@kaurax/example-hello-world is exercised by tests/examples-smoke.sh against a live chain\"",
+    "typecheck": "echo \"plain JavaScript, no typecheck\"",
+    "lint": "node --check deploy.mjs"
+  },
+  "dependencies": {"viem": "^2.56.3"}
+}

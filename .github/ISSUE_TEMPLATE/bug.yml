@@ -1,0 +1,38 @@
+name: Bug report
+description: Something behaves differently from what the documentation says
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not report a security vulnerability here.** See [SECURITY.md](../../SECURITY.md).
+  - type: input
+    id: version
+    attributes: {label: Commit or version, placeholder: "git rev-parse --short HEAD"}
+    validations: {required: true}
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [Local devnet, Public testnet, Contracts only, CI, Not sure]
+    validations: {required: true}
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Exact commands. A reproduction we can run is worth more than a description.
+      placeholder: |
+        ./infra/scripts/devnet/start.sh
+        ./tests/acceptance.sh
+    validations: {required: true}
+  - type: textarea
+    id: expected
+    attributes: {label: What you expected, description: And where the documentation says so, if it does}
+    validations: {required: true}
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Paste the output. Redact keys and addresses you would rather not publish.
+      render: shell
+    validations: {required: true}

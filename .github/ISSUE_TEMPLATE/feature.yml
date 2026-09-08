@@ -1,0 +1,30 @@
+name: Feature request
+description: Something KAURAX should do and does not
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and where does it stop working?
+    validations: {required: true}
+  - type: textarea
+    id: proposal
+    attributes: {label: What you would like instead}
+    validations: {required: true}
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Contracts, Node, CLI or SDK, Apps, Infrastructure, Documentation, Fault proofs, Other]
+    validations: {required: true}
+  - type: checkboxes
+    id: trust
+    attributes:
+      label: Trust model
+      description: >
+        KAURAX is a rollup. It has no validators and no consensus layer, and adding them is
+        out of scope — see docs/validators.md.
+      options:
+        - label: This does not require validators, a consensus layer, or weakening a documented trust assumption
+          required: true

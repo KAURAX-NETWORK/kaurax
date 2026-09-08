@@ -1,0 +1,26 @@
+name: Security — do not use this template
+description: Report a vulnerability privately instead
+labels: [security]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Please close this and report privately
+
+        A public issue tells an attacker before it tells a maintainer. See
+        [SECURITY.md](../../SECURITY.md) for how to reach us.
+
+        **Report privately** anything touching: the bridge or withdrawals, output roots, the
+        dispute game, forced inclusion, governance or key handling.
+
+        **A public issue is fine** for things already documented as open — no fault proof
+        over KAURAX execution (H-1), the guardian deciding disputes (H-2), no external audit
+        (H-3), the single sequencer. Those are known; see
+        [docs/SECURITY_STATUS.md](../../docs/SECURITY_STATUS.md).
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirm
+      options:
+        - label: I have read SECURITY.md and this is not exploitable
+          required: true
