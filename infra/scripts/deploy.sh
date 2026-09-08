@@ -60,6 +60,30 @@ info "environment looks configured"
 docker compose config --quiet || die "docker-compose.yml is invalid"
 info "compose file is valid"
 
+# A deploy must not silently unpublish a port the internet is currently reaching.
+#
+# This host publishes nginx on 8880 because UpCloud blocks inbound 80/443 on the account,
+# and that mapping lives in docker-compose.devnet.yml. A bare `docker compose` reads only the
+# base file, so running this script without COMPOSE_FILE set would rebind nginx to 80/443 and
+# take the origin off the internet while every container still reported healthy — which is
+# exactly what happened once, by hand.
+#
+# Comparing what is published now against what would be published catches that class of
+# mistake generally, rather than special-casing one port number.
+LIVE_PORTS="$(docker ps --format '{{.Ports}}' 2>/dev/null | tr ',' '\n' | grep -oE '0\.0\.0\.0:[0-9]+' | cut -d: -f2 | sort -u || true)"
+NEXT_PORTS="$(docker compose config 2>/dev/null | grep -E '^\s+published:' | grep -oE '[0-9]+' | sort -u || true)"
+if [ -n "$LIVE_PORTS" ]; then
+  LOST="$(comm -23 <(echo "$LIVE_PORTS") <(echo "$NEXT_PORTS") | tr '\n' ' ' | sed 's/ $//')"
+  if [ -n "$LOST" ]; then
+    die "this deploy would stop publishing port(s): $LOST
+  Something currently reachable would go dark. The usual cause is a missing compose file —
+  set COMPOSE_FILE in .env, e.g.
+    COMPOSE_FILE=docker-compose.yml:docker-compose.devnet.yml
+  Re-run once the rendered configuration publishes everything it publishes today."
+  fi
+fi
+info "no currently published port would be dropped"
+
 step "Recording the current state for rollback"
 PREVIOUS="$(docker compose images --quiet 2>/dev/null | sort -u | head -20 || true)"
 if [ -n "$PREVIOUS" ]; then

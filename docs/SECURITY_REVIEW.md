@@ -1,5 +1,12 @@
 # KAURAX — Internal Security Review
 
+> **HISTORICAL SNAPSHOT.** This is the internal security review as it stood when written, kept
+> unaltered so findings can be traced. For current status see
+> [SECURITY_STATUS.md](SECURITY_STATUS.md) and
+> [TEST_STATUS.md](TEST_STATUS.md). Individual findings below carry their own
+> current state where it has changed.
+
+
 **Date:** 2026-09-08
 **Reviewer:** internal. **This is not an audit.** No external firm has examined this code,
 and an internal review by the person who wrote the code is the weakest kind there is.
@@ -56,7 +63,7 @@ is deployed but **not yet holding the role**.
 ### H-3 — No external audit
 **Open.**
 
-254 contract tests are evidence of intent, not of correctness. The settlement, bridge and
+270 contract tests are evidence of intent, not of correctness. The settlement, bridge and
 dispute contracts have never been read by an independent party.
 
 *Fix:* audit before any deployment carrying value.

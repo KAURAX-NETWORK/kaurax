@@ -46,9 +46,38 @@ jobs:
           import re, subprocess, sys
 
           SKIP = re.compile(r'(^|/)(tests?|node_modules|out|dist|\.next|lib)/|infra/scripts/devnet/')
+          # `[:=]` alone missed the shape a fallback takes:
+          #     const KEY = process.env.PRIVATE_KEY ?? "0x…64 hex…"
+          # which is exactly how a default gets written, and exactly how a real key would slip
+          # past this gate. `??` and `||` are now matched too.
+          # Two shapes were missing, and both are how a default actually gets written:
+          #
+          #     const PRIVATE_KEY = process.env.PK ?? "0x…64 hex…"
+          #     let deployerKey = opts.key || "0x…64 hex…"
+          #
+          # Requiring the name to sit immediately beside the literal missed every one of
+          # them. The literal may now follow after an intervening expression, as long as it
+          # is on the same statement — no newline, no semicolon, and no other string in
+          # between, which keeps this from matching unrelated hex further down a file.
           KEYISH = re.compile(
-              r'(private[_-]?key|secret|mnemonic|seed|signer[_-]?key|deployer[_-]?key)\s*[:=]\s*["\x27]?0x[0-9a-fA-F]{64}',
+              r'(private[_-]?key|secret|mnemonic|seed|signer[_-]?key|deployer[_-]?key)'
+              r'["\x27]?\s*(?::|=)\s*'   # optional closing quote: "mnemonic": "0x…"
+              r'[^;\n"\x27]{0,120}'
+              r'["\x27]?(0x[0-9a-fA-F]{64})',
               re.I)
+
+          # Anvil's published development keys. They ship inside every Foundry install, fund
+          # the local devnet, and are worth nothing. Allow them by exact value rather than by
+          # excluding the directories they appear in — excluding a path would also hide a real
+          # key that happened to be written there.
+          PUBLIC_DEV_KEYS = {
+              "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+              "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+              "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
+              "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
+              "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a",
+          }
+          HEX = re.compile(r'0x[0-9a-fA-F]{64}')
 
           files = subprocess.run(["git", "ls-files"], capture_output=True, text=True).stdout.split()
           hits = []
@@ -60,6 +89,9 @@ jobs:
               except OSError:
                   continue
               for m in KEYISH.finditer(text):
+                  found = HEX.search(m.group(0))
+                  if found and found.group(0).lower() in PUBLIC_DEV_KEYS:
+                      continue
                   line = text[:m.start()].count("\n") + 1
                   hits.append(f"{f}:{line}")
 

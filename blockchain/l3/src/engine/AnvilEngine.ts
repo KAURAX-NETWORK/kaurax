@@ -7,8 +7,17 @@
  * `op-geth`: consensus decides the payload, execution decides its effect.
  *
  * `anvil` is a full revm-based EVM implementation, so execution, gas accounting, receipts,
- * logs and state roots here are real. What it is not is a production client — the
- * `testnet` profile uses `op-geth` for that. See docs/STACK_DECISION.md.
+ * logs and state roots here are real. What it is not is a production client.
+ *
+ * This is the ONLY `ExecutionEngine` implementation, and `index.ts` constructs it
+ * unconditionally — the profile is not consulted. An earlier version of this comment claimed
+ * the `testnet` profile used `op-geth`; no such engine exists in this repository, and the
+ * public testnet runs exactly what the devnet runs. `ExecutionEngine` is written to admit a
+ * second implementation, which is a different statement from having one.
+ *
+ * The consequence is not cosmetic: because the engine is an external binary reached over
+ * JSON-RPC, it cannot emit a per-instruction execution trace, which is why KAURAX has no
+ * fault proof over its own state transitions. See docs/FAULT_PROOFS.md §1.
  */
 import {JsonRpcClient} from "./rpc.js";
 import type {DepositIntent, ExecutionEngine, Hex, L3Block} from "./types.js";

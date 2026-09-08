@@ -23,13 +23,36 @@ async function timed(name: string, fn: () => Promise<string | null>): Promise<He
   }
 }
 
+/**
+ * Every health probe must have a deadline.
+ *
+ * A probe without one does not fail — it hangs, and takes /api/health with it. The endpoint
+ * then produces no answer at all, which is strictly worse than reporting "down": an
+ * orchestrator sees a request in flight rather than a service to restart, and `curl` reports
+ * 000 rather than 503. Both the database and the RPC probes hung this way; the chaos suite
+ * caught the second one only after the first was fixed.
+ */
+export const PROBE_TIMEOUT_MS = 5000;
+
+export function withDeadline<T>(what: string, work: Promise<T>): Promise<T> {
+  return Promise.race([
+    work,
+    new Promise<never>((_resolve, reject) =>
+      setTimeout(
+        () => reject(new Error(`${what} did not respond within ${PROBE_TIMEOUT_MS / 1000}s`)),
+        PROBE_TIMEOUT_MS,
+      ).unref(),
+    ),
+  ]);
+}
+
 async function checkRpc(ctx: Context): Promise<HealthCheck> {
   return timed("rpc", async () => {
-    const chainId = Number(BigInt(await ctx.rpc.call<string>("eth_chainId")));
+    const chainId = Number(BigInt(await withDeadline("the RPC", ctx.rpc.call<string>("eth_chainId"))));
     if (chainId !== ctx.cfg.chainId) {
       throw new Error(`RPC reports chain ${chainId}, API is configured for ${ctx.cfg.chainId}`);
     }
-    const head = BigInt(await ctx.rpc.call<string>("eth_blockNumber"));
+    const head = BigInt(await withDeadline("the RPC", ctx.rpc.call<string>("eth_blockNumber")));
     return `chain ${chainId} at block ${head}`;
   });
 }
@@ -44,7 +67,12 @@ async function checkDatabase(ctx: Context): Promise<HealthCheck> {
     };
   }
   return timed("database", async () => {
-    const {rows} = await ctx.db!.query<{n: string}>("SELECT count(*)::text AS n FROM blocks");
+    // A suspended or wedged PostgreSQL accepts the connection and never answers, so this
+    // needs a deadline for the same reason the RPC probe does.
+    const {rows} = await withDeadline(
+      "the database",
+      ctx.db!.query<{n: string}>("SELECT count(*)::text AS n FROM blocks"),
+    );
     return `reachable, ${rows[0]?.n ?? "0"} blocks indexed`;
   });
 }

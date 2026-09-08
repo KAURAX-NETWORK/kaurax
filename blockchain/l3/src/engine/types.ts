@@ -2,9 +2,11 @@
  * ExecutionEngineInterface — the boundary between KAURAX consensus and KAURAX execution.
  *
  * This mirrors the split the OP Stack draws between `op-node` (which decides *what* goes
- * into a block) and `op-geth` (which decides *what that block means*). Keeping it behind
- * an interface is what lets the same sequencer, batcher and proposer drive either the
- * devnet engine or a production `op-geth` over the Engine API.
+ * into a block) and `op-geth` (which decides *what that block means*).
+ *
+ * The interface exists so a production client could be driven by the same sequencer, batcher
+ * and proposer. One implementation exists today — `AnvilEngine`. Nothing here should be read
+ * as a claim that a second one is available.
  */
 export type Hex = `0x${string}`;
 
