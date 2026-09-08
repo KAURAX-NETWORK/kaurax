@@ -25,7 +25,7 @@ and what it would cost.
 
 | Deliverable | Verifiable by |
 |---|---|
-| TLS on the RPC, standard ports | `curl https://rpc.kaurax.network` |
+| TLS on the RPC, standard ports | `curl https://kaurax.network/rpc` |
 | Operator keys on the signing service or HSM | `kaurax_settlementStatus` reports `signers.mode: remote` |
 | Alerting on existing metrics | Alert rules in the repository; a test page |
 | Disaster recovery rehearsed | Published write-up: what was killed, what broke, how long |
@@ -38,6 +38,10 @@ No research risk. This is work with a known shape.
 ---
 
 ## Milestone 2 — Fault proof research and implementation
+
+*Expanded into seven milestones with acceptance tests in
+[`docs/grants/MILESTONES.md`](grants/MILESTONES.md); effort in
+[`docs/grants/BUDGET.md`](grants/BUDGET.md).*
 
 **18–30 engineer-months. The largest and the least predictable.**
 

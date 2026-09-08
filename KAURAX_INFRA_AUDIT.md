@@ -1,5 +1,12 @@
 # KAURAX — Infrastructure Audit
 
+> **HISTORICAL SNAPSHOT.** This is the infrastructure audit as it stood when written, kept
+> unaltered so findings can be traced. For current status see
+> [docs/SECURITY_STATUS.md](docs/SECURITY_STATUS.md) and
+> [docs/TEST_STATUS.md](docs/TEST_STATUS.md). Individual findings below carry their own
+> current state where it has changed.
+
+
 **Date:** 2026-09-07
 **Scope:** the repository as it stands, before any infrastructure restructuring.
 **Method:** live inspection of the running devnet, the source tree, the test suites and the

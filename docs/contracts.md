@@ -5,7 +5,7 @@ All contracts are MIT-licensed Solidity 0.8.28, built with Foundry.
 ```bash
 cd blockchain/contracts
 forge build
-forge test          # 162 tests
+forge test          # 270 tests
 forge test -vvv     # with traces
 forge fmt
 ```

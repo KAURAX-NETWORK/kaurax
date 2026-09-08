@@ -4,6 +4,11 @@
 dispute game and **no fault proof system**. That absence is stated first because it
 determines what KAURAX can honestly claim.
 
+> **This is the project-wide overview.** The funding request itself — proposal, milestones,
+> budget, impact, FAQ and proposed issues — is the package in
+> [`docs/grants/`](grants/GRANT_OVERVIEW.md). Where the two describe the same thing, the
+> grants package is the more detailed and more recent.
+
 ---
 
 ## 1. The problem
@@ -135,6 +140,10 @@ someone outside the project. No token sale, no returns offered, no tokenomics.
 ---
 
 ## 12. Milestones
+
+These five are **project phases**, not the grant's milestones. The funding request covers
+phase 2 only, broken into M1–M7 with acceptance tests in
+[`docs/grants/MILESTONES.md`](grants/MILESTONES.md).
 
 | # | Deliverable | Verifiable by |
 |---|---|---|

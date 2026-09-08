@@ -1,5 +1,12 @@
 # KAURAX — Deployment Status
 
+> **HISTORICAL SNAPSHOT.** This is the deployment status as it stood when written, kept
+> unaltered so findings can be traced. For current status see
+> [docs/SECURITY_STATUS.md](docs/SECURITY_STATUS.md) and
+> [docs/TEST_STATUS.md](docs/TEST_STATUS.md). Individual findings below carry their own
+> current state where it has changed.
+
+
 **Date:** 2026-09-07
 **Legend:** ✅ working (verified by running it) · ⚠️ needs configuration · ❌ not implemented
 

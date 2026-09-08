@@ -84,6 +84,29 @@ if (existsSync(docsDir)) {
   }
 }
 
+// Subdirectories of docs/. These arrived with the grant package and the architecture
+// overview, and the collector above only reads the top level — so they were written,
+// linked from docs/README.md, and served by nothing.
+//
+// The slug flattens the path with a hyphen rather than a slash, for the same reason the
+// root files use a "repo-" word prefix: a slug containing "/" has to be reassembled from a
+// catch-all route and then collides with the app's basePath.
+const SUBDIRS = ["architecture", "grants"];
+
+for (const dir of SUBDIRS) {
+  const full = join(docsDir, dir);
+  if (!existsSync(full)) continue;
+  for (const name of readdirSync(full).filter((f) => f.endsWith(".md")).sort()) {
+    const markdown = readFileSync(join(full, name), "utf8");
+    entries.push({
+      slug: `${dir}-${name.replace(/\.md$/, "").toLowerCase().replace(/_/g, "-")}`,
+      title: titleOf(markdown, name),
+      group: "protocol",
+      markdown,
+    });
+  }
+}
+
 if (entries.length === 0) {
   // Failing the build is the point: a docs site with no documents should never deploy.
   console.error("[docs] no markdown found — refusing to generate an empty documentation site");

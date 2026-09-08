@@ -186,7 +186,7 @@ even if an address is configured.
 ## Verifying them
 
 ```bash
-cd blockchain/contracts && forge test    # 162 tests, all suites
+cd blockchain/contracts && forge test    # 270 tests, all suites
 ./tests/apps-smoke.sh                     # 43 checks against a live chain
 ```
 

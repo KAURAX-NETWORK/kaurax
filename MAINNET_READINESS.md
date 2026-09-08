@@ -2,7 +2,8 @@
 
 **Date:** 2026-09-08 · **Score: 52/100** · **Verdict: not ready, and one reason dominates.**
 
-There is no fault proof system. Everything else on this page is secondary to that, and no
+There is no fault proof system over KAURAX execution (a one-step verifier exists for a
+documented EVM subset and is not connected to settlement — see docs/FAULT_PROOFS.md). Everything else on this page is secondary to that, and no
 amount of operational polish substitutes for it.
 
 Nothing is marked done unless it was verified. Where evidence is a test, the test is named.
@@ -90,7 +91,7 @@ Executed for this report, not quoted from memory.
 
 | Suite | Result |
 |---|---|
-| `forge test` | **270 passed**, 0 failed, 14 suites |
+| `forge test` | **322 passed**, 0 failed, 17 suites |
 | `pnpm test` | **126 passed**, 0 failed, 25 packages |
 | `tests/e2e-testnet.sh` | **12 passed**, 0 failed, against the live chain |
 | Dispute game | 41 tests |
