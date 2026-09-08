@@ -4,7 +4,7 @@
  * Where a value is only available live (balances, code), it is read from the RPC at
  * request time. Nothing here is cached in a way that could return a stale head.
  */
-import type {FastifyInstance} from "fastify";
+import type {FastifyInstance, FastifyRequest} from "fastify";
 import type {
   IndexedBlock,
   IndexedTransaction,
@@ -105,9 +105,49 @@ async function lastBatchedBlock(ctx: Context): Promise<bigint | null> {
   }
 }
 
+/**
+ * The address a *browser* should dial, which is not the address this API dials.
+ *
+ * `KAURAX_RPC_URL` is how the API container reaches the node: in the deployed stack that is
+ * `http://kaurax-l3:8420`, a Docker service name. Serving it in /api/network handed every
+ * wallet an unresolvable host — MetaMask added the network, could not reach it, and showed a
+ * zero balance for an account that had funds. The chain was fine; the address was.
+ *
+ * Precedence:
+ *   1. `KAURAX_PUBLIC_RPC_URL`, when the operator states it explicitly;
+ *   2. the origin the request arrived on, plus the path nginx proxies to the node.
+ *
+ * There is deliberately no fallback to `cfg.rpcUrl`. An internal address is not a degraded
+ * answer here, it is a wrong one, and it fails in a way that looks like an empty wallet
+ * rather than like a misconfiguration.
+ */
+export const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)(:\d+)?$/;
+
+export function publicOrigin(req: FastifyRequest): string | null {
+  const host = req.headers["x-forwarded-host"] ?? req.headers.host;
+  if (typeof host !== "string" || host.length === 0) return null;
+
+  const forwarded = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0]?.trim();
+  // `req.protocol` is the scheme of the *last* hop. In the deployed stack TLS terminates at
+  // the CDN, which then reaches nginx over plain http, so trusting it advertised an http://
+  // RPC URL to pages served over https — which browsers block as mixed content, and which
+  // MetaMask refuses outright. A public hostname is assumed to be https; only a loopback
+  // host is taken at its word.
+  const proto = forwarded ?? (LOCAL.test(host) ? (req.protocol ?? "http") : "https");
+  return `${proto}://${host}`;
+}
+
+export function browserFacing(req: FastifyRequest, ctx: Context): {rpcUrl: string; explorerUrl: string} {
+  const origin = publicOrigin(req);
+  return {
+    rpcUrl: process.env.KAURAX_PUBLIC_RPC_URL ?? (origin ? `${origin}/rpc` : ""),
+    explorerUrl: ctx.cfg.explorerUrl || (origin ? `${origin}/explorer` : ""),
+  };
+}
+
 export function registerChainRoutes(app: FastifyInstance, ctx: Context): void {
   // ------------------------------------------------------------- network --
-  app.get("/api/network", async () => {
+  app.get("/api/network", async (req) => {
     const [chainIdHex, headHex, gasPriceHex] = await Promise.all([
       ctx.rpc.call<string>("eth_chainId"),
       ctx.rpc.call<string>("eth_blockNumber"),
@@ -119,8 +159,7 @@ export function registerChainRoutes(app: FastifyInstance, ctx: Context): void {
       chainId: Number(BigInt(chainIdHex)),
       layer: 3,
       currency: {name: "KAURAX", symbol: "KAX", decimals: 18},
-      rpcUrl: ctx.cfg.rpcUrl,
-      explorerUrl: ctx.cfg.explorerUrl,
+      ...browserFacing(req, ctx),
       settlesTo:
         ctx.cfg.l2.chainId !== null && ctx.cfg.l2.name !== null
           ? {chainId: ctx.cfg.l2.chainId, name: ctx.cfg.l2.name}

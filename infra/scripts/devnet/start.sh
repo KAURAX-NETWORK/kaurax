@@ -93,6 +93,57 @@ info "profile=${KAURAX_PROFILE}  L1=${L1_CHAIN_ID}  L2=${L2_CHAIN_ID}  L3=${KAUR
 "$ROOT/infra/scripts/devnet/stop.sh" --quiet 2>/dev/null || true
 mkdir -p "$RUN_DIR"
 
+# Every run below starts anvil without --state, so the L1 and L2 are brand new chains
+# beginning at block 0. Two files on disk describe a position in the *previous* chain:
+#
+#   derivation-cursor.json  the last L2 block whose deposits were sealed
+#   sequencer-wal.jsonl     transactions accepted but not yet in a sealed block
+#
+# Left in place they describe a chain that no longer exists, and the node correctly refuses
+# to start:
+#
+#   "Derivation checkpoint says L2 block 69, but the L2 head is only 4.
+#    This node is pointed at a different or reset L2. Refusing to start."
+#
+# That check is right and stays. What was wrong is this script creating a new chain while
+# leaving the old chain's bookmarks behind, so the second `start.sh` on any machine failed —
+# the first run worked, and every run after it did not.
+#
+# The files are removed here rather than in stop.sh on purpose: stopping the devnet is not
+# the same as discarding it, and a future start.sh that reattaches to a running chain must
+# keep them.
+rm -f "$RUN_DIR/derivation-cursor.json" "$RUN_DIR/sequencer-wal.jsonl"
+
+# stop.sh kills what the pid files name, and nothing else. That is usually enough, but a
+# node started by tests/chaos.sh runs from a different working directory with a relative
+# path, and if a later start.sh overwrites the pid file, the chaos-started node becomes
+# unreachable by both stop.sh and an obvious `pkill -f blockchain/l3/dist/cli.js`.
+#
+# It then keeps port 8420. Every start.sh after that produced a node that could not bind and
+# exited, while the RPC kept answering from the orphan — so the script reported success, the
+# chain looked alive, and the pid file named a process that no longer existed. That state
+# cost two separate investigations before it was understood.
+#
+# Refusing here turns a silent, self-perpetuating mess into one sentence.
+for _port_desc in "8420:KAURAX RPC" "9545:L2" "8545:L1" "18420:execution engine"; do
+  _port="${_port_desc%%:*}"; _what="${_port_desc#*:}"
+  # `|| true` matters: lsof exits non-zero when nothing is listening, and this script runs
+  # under `set -e` with `pipefail`, so the happy path — no orphan — would abort it silently.
+  _holder="$(lsof -nP -iTCP:"$_port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $2}' || true)"
+  if [ -n "$_holder" ]; then
+    # This check has to run after stop.sh — its whole purpose is to catch what stop.sh could
+    # not kill — so by the time it fires, the rest of the devnet is already stopped. Say so,
+    # or the next person sees a half-torn-down stack and no explanation.
+    die "port $_port ($_what) is already held by pid $_holder, which this script did not start.
+  stop.sh only kills what its pid files name, so an orphan survives it.
+
+  The rest of the devnet has been stopped. To recover:
+    ps -p $_holder -o pid,ppid,lstart,command
+    kill -9 $_holder
+    ./infra/scripts/devnet/start.sh"
+  fi
+done
+
 L1_PORT="$(node -p "new URL('${L1_RPC_URL}').port || 8545")"
 L2_PORT="$(node -p "new URL('${L2_RPC_URL}').port || 9545")"
 L3_ENGINE_PORT="$(node -p "new URL('${KAURAX_ENGINE_RPC_URL}').port || 18420")"

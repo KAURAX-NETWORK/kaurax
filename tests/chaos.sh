@@ -61,10 +61,45 @@ wait_for() { # wait_for <seconds> <command...> — polls until the command succe
 node_is_up() { [ -n "$(head_block)" ]; }
 api_is_up()  { curl -s --max-time 3 "http://127.0.0.1:${API_PORT:-7300}/api/health/live" | grep -q '"ok"'; }
 
+# Restart the node, and record the pid of the process that is actually serving.
+#
+# The naive version recorded `$!` and moved on. If the previous node had not yet released
+# port 8420, the new process exited immediately — and its pid was written to the file anyway.
+# Every later scenario then killed a pid that no longer existed, saw the old node still
+# answering, and reported "node still answering after SIGKILL". The harness was producing its
+# own failures and blaming the node.
+#
+# So: wait for the port, then verify the thing we started is the thing listening.
 restart_node() {
+  local port="${KAURAX_RPC_PORT:-8420}"
+
+  for _ in $(seq 1 40); do
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 || break
+    sleep 0.25
+  done
+  if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    local holder; holder="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $2}')"
+    fail "port $port never freed — pid $holder is still holding it; a previous node was not killed"
+    return 1
+  fi
+
   ( set -a; . "$ROOT/.env"; set +a
     cd "$ROOT/blockchain/l3" && nohup node dist/cli.js >> "$RUN_DIR/kaurax-node.log" 2>&1 &
     echo $! > "$RUN_DIR/kaurax-node.pid" )
+
+  for _ in $(seq 1 60); do
+    node_is_up && break
+    sleep 0.5
+  done
+
+  local recorded listening
+  recorded="$(cat "$RUN_DIR/kaurax-node.pid" 2>/dev/null || true)"
+  listening="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $2}' || true)"
+  if [ -n "$listening" ] && [ "$recorded" != "$listening" ]; then
+    # Record the truth rather than the intention, so the next kill targets the right process.
+    echo "$listening" > "$RUN_DIR/kaurax-node.pid"
+    step "recorded pid $recorded was not the listener; corrected to $listening"
+  fi
 }
 restart_indexer() {
   ( set -a; . "$ROOT/.env"; set +a
@@ -79,7 +114,23 @@ restart_api() {
 
 kill_pidfile() { # kill_pidfile <name> <signal>
   local pid; pid="$(cat "$RUN_DIR/$1.pid" 2>/dev/null || true)"
-  [ -n "$pid" ] || { fail "$1 has no pid file — is the devnet running?"; return 1; }
+  # The old message here was "is the devnet running?", which is misleading for the indexer
+  # and the API: devnet/start.sh does not start either of them, so the devnet can be running
+  # perfectly while these are absent. That message sent two separate investigations down the
+  # wrong path. Say what is actually missing, and how to start it.
+  if [ -z "$pid" ]; then
+    case "$1" in
+      indexer|api)
+        fail "$1 is not running — devnet/start.sh does not start it"
+        step "start both:  set -a; . ./.env; set +a; pnpm --filter @kaurax/indexer --filter @kaurax/api build"
+        step "             node services/indexer/dist/index.js & node services/api/dist/index.js &"
+        ;;
+      *)
+        fail "$1 has no pid file — is the devnet running?"
+        ;;
+    esac
+    return 1
+  fi
   kill "-${2:-KILL}" "$pid" 2>/dev/null || true
   # Wait for it to actually be gone; killing and immediately asserting is a race.
   for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || return 0; sleep 0.5; done
@@ -166,15 +217,54 @@ chaos_database() {
 
   # The devnet uses a local PostgreSQL, not a container; suspend rather than stop it so the
   # test is reversible on any machine.
-  local pgpid; pgpid="$(pgrep -f "postgres.*-D" | head -1)"
+  # Find the postmaster by the port the API actually connects to, not by pattern.
+  #
+  # `pgrep -f "postgres.*-D"` matches any postmaster on the machine, and this one had two
+  # installed. The scenario suspended one instance while the API talked to the other, so the
+  # database never went away and the API was blamed for correctly reporting itself healthy.
+  # The listening socket is the only unambiguous answer to "which postgres is this API using".
+  [ -n "${DATABASE_URL:-}" ] || { set -a; . "$ROOT/.env" 2>/dev/null; set +a; }
+  local pgport; pgport="$(printf '%s' "${DATABASE_URL:-}" | sed -n 's|.*:\([0-9]\{2,5\}\)/.*|\1|p')"
+  pgport="${pgport:-5432}"
+
+  local pgpid
+  pgpid="$(lsof -nP -iTCP:"$pgport" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $2}' || true)"
+  [ -n "$pgpid" ] || pgpid="$(pgrep -f "postgres.*-D" | head -1)"
   if [ -z "$pgpid" ]; then
     step "no local postgres process found — skipping (containerised setups: docker compose stop postgres)"
     return
   fi
 
-  kill -STOP "$pgpid" 2>/dev/null
-  step "postgres suspended (SIGSTOP)"
+  # Suspend the backends too, not just the postmaster.
+  #
+  # SIGSTOP on the postmaster stops new connections being accepted and nothing else: every
+  # already-established backend keeps serving. The API holds a connection pool, so its
+  # queries carried on working and the scenario concluded the API was lying about its health
+  # when the database had simply never gone away.
+  local pgfamily; pgfamily="$(pgrep -P "$pgpid" 2>/dev/null | tr '\n' ' ')"
+  for _p in $pgpid $pgfamily; do kill -STOP "$_p" 2>/dev/null; done
+  step "postgres suspended (SIGSTOP) — postmaster $pgpid and $(printf '%s' "$pgfamily" | wc -w | tr -d ' ') backends"
   sleep 2
+
+  # Verify the precondition before asserting anything about the API.
+  #
+  # `pgrep -f "postgres.*-D"` can match a backend process rather than the postmaster, and
+  # suspending a backend leaves the server answering. The scenario then blamed the API for a
+  # database that was never actually down — a false failure that looks exactly like a real
+  # one. If the database is still reachable, say the scenario could not run rather than
+  # asserting against a precondition that does not hold.
+  if command -v psql >/dev/null 2>&1 && [ -n "${DATABASE_URL:-}" ]; then
+    # PGCONNECT_TIMEOUT is not optional here. A SIGSTOPped postmaster still accepts the TCP
+    # connection and then never answers, so a plain psql hangs forever — which is exactly
+    # what this probe is trying to detect, and exactly how it hung the whole suite when it
+    # had no deadline.
+    if PGCONNECT_TIMEOUT=3 psql "$DATABASE_URL" -tAc 'select 1' >/dev/null 2>&1; then
+      for _p in $pgpid $pgfamily; do kill -CONT "$_p" 2>/dev/null; done
+      step "postgres is still answering after SIGSTOP on pid $pgpid"
+      step "scenario skipped: it cannot take the database down on this machine"
+      return
+    fi
+  fi
 
   local code
   code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "http://127.0.0.1:${API_PORT:-7300}/api/health")"
@@ -195,7 +285,7 @@ chaos_database() {
     step "history route returned: $(printf '%s' "$body" | head -c 120)"
   fi
 
-  kill -CONT "$pgpid" 2>/dev/null
+  for _p in $pgpid $pgfamily; do kill -CONT "$_p" 2>/dev/null; done
   step "postgres resumed"
 
   api_healthy() { curl -s --max-time 5 "http://127.0.0.1:${API_PORT:-7300}/api/health" | grep -q '"status":"ok"'; }

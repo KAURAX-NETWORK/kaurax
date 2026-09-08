@@ -86,3 +86,16 @@ groups:
         labels: {severity: warning}
         annotations:
           summary: "KAURAX mempool backlog is {{ $value }} transactions"
+
+      # The failure that hid every other alert: a target that cannot be resolved is simply
+      # "down", and nothing was alerting on down targets. An alert that never fires is
+      # indistinguishable from a system that never breaks.
+      - alert: KauraxScrapeTargetDown
+        expr: up == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "Prometheus cannot scrape {{ $labels.job }}"
+          description: >
+            Target {{ $labels.instance }} for job {{ $labels.job }} has been unscrapeable for
+            two minutes. Every other alert for this job is blind until it returns.

@@ -13,11 +13,22 @@ rule_files:
   - /etc/prometheus/alerts.yml
 
 scrape_configs:
+  # The compose service is `kaurax-l3`; there is no service called `kaurax-node`. Prometheus
+  # resolves targets through Docker's DNS, so the old name never resolved and this job had
+  # been down for as long as it has existed — silently, because a scrape target that cannot
+  # be resolved is just a target that is down, and nothing was watching for that either.
   - job_name: kaurax-node
     static_configs:
-      - targets: ["kaurax-node:7300"]
+      - targets: ["kaurax-l3:7300"]
         labels:
           component: kaurax-node
+    metrics_path: /metrics
+
+  - job_name: kaurax-indexer
+    static_configs:
+      - targets: ["indexer:7301"]
+        labels:
+          component: kaurax-indexer
     metrics_path: /metrics
 
   - job_name: prometheus
