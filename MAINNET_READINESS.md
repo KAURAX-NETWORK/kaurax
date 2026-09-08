@@ -91,8 +91,8 @@ Executed for this report, not quoted from memory.
 
 | Suite | Result |
 |---|---|
-| `forge test` | **322 passed**, 0 failed, 17 suites |
-| `pnpm test` | **126 passed**, 0 failed, 25 packages |
+| `forge test` | **338 passed**, 0 failed, 18 suites |
+| `pnpm test` | **179 passed**, 0 failed, 29 packages |
 | `tests/e2e-testnet.sh` | **12 passed**, 0 failed, against the live chain |
 | Dispute game | 41 tests |
 | Adversarial dispute | 11 tests, real attacker contracts |

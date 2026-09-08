@@ -137,5 +137,5 @@ A higher score is not the objective. Correctness is.
 
 Nobody has, and that is the honest answer. Everything above is checkable from a clean
 checkout: [../REPRODUCIBLE_BUILD.md](../REPRODUCIBLE_BUILD.md) lists the commands and their
-observed output, and [../TEST_STATUS.md](../TEST_STATUS.md) breaks the 499 tests down per
+observed output, and [../TEST_STATUS.md](../TEST_STATUS.md) breaks the 529 tests down per
 suite, including what is **not** run.

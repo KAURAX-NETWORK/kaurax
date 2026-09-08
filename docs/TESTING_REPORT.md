@@ -9,8 +9,8 @@ figures are from `forge coverage` and `vitest --coverage` on this commit.
 
 | Suite | Command | Result |
 |---|---|---|
-| Solidity | `forge test` | **322 passed**, 0 failed, 17 suites |
-| Node and services | `pnpm test` | **165 passed**, 26 packages |
+| Solidity | `forge test` | **338 passed**, 0 failed, 18 suites |
+| Node and services | `pnpm test` | **179 passed**, 29 packages |
 | Fault-proof properties | `pnpm --filter @kaurax/tests test` | **10 passed** (400+ programs each) |
 | Security + adversarial | `pnpm --filter @kaurax/tests test:integration` | **44 passed** (26 + 18) |
 | Acceptance, end to end | `./tests/acceptance.sh` | **47 checks passed** |
@@ -50,14 +50,23 @@ figures are from `forge coverage` and `vitest --coverage` on this commit.
 | Contract | Lines | Branches |
 |---|---|---|
 | `KauraxMultisig.sol` | 84.38% | 40.00% |
-| `KauraxTimelock.sol` | **72.06%** | 40.00% |
+| `KauraxTimelock.sol` | **88.24%** | 65.00% |
 | `DeployGuard.sol` | **100.00%** | **100.00%** |
 | `MerkleTree.sol` | 86.49% | 100.00% |
 | `Hashing.sol` | 66.67% | — |
 | `AddressAliasHelper.sol` | 71.43% | 100.00% |
 
-CI enforces a floor of 80% lines on security-critical contracts; every contract in that set
-clears it.
+CI enforces a floor of 80% lines on security-critical contracts. **When this was first
+written `KauraxTimelock` was at 72.06% and that gate had been failing on every commit** — the
+claim that every contract cleared it was wrong, and the workflow said so while this document
+did not.
+
+The gap was the timelock's self-administration path — `setDelay`, `setProposer`,
+`setExecutor`, `setGuardian` and the `onlySelf` guard — which is how the timelock's own
+parameters change and was entirely untested. `TimelockSelfAdmin.t.sol` covers it in 16 tests,
+including that shortening the delay still costs the *current* delay: otherwise a captured
+proposer's first move would be to make every later move free. Coverage is now **88.24%** and
+all five gated contracts clear the floor.
 
 **Branch coverage is the weak axis** — mostly 40–70%, and 16.67% on the message passer. Line
 coverage says the code ran; branch coverage says whether the *alternative* was tried. A revert

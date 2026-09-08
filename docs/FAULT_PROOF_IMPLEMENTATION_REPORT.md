@@ -94,7 +94,7 @@ untouched. The KVS is a new package that nothing in the running node imports.
 
 | Suite | Before | After |
 |---|---|---|
-| Solidity (`forge test`) | 270 | **322** |
+| Solidity (`forge test`) | 270 | **338** |
 | Node (`pnpm test`) | 126 | **165** |
 | Live end-to-end | 12 | 12 |
 
@@ -238,8 +238,8 @@ coverage → MPT state model → audit → then wire it in.
 ## 10. Verification
 
 ```
-forge test          322 passed, 0 failed, 17 suites
-pnpm test           165 passed, 26 packages
+forge test          338 passed, 0 failed, 18 suites
+pnpm test           179 passed, 29 packages
 pnpm typecheck      26/26
 forge fmt --check   clean
 ```

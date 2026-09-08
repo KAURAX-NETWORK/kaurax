@@ -26,6 +26,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      # Documented test counts have drifted four separate times, each caught by hand. This
+      # is the gate that stops it: docs/TEST_STATUS.md must equal what the suites report, and
+      # no document may contradict them.
+      - name: Documented test counts match the suites
+        run: ./tests/check-doc-counts.sh
+
       - name: Unit tests
         run: pnpm test
 
@@ -72,6 +78,11 @@ jobs:
       - run: pnpm install --frozen-lockfile=false
 
       # Brings up L1, L2, settlement contracts, KAURAX genesis and kaurax-node.
+      # start.sh runs `forge build`, which needs forge-std. It is not vendored, so without
+      # this the devnet job failed at compilation before it ever reached the chain.
+      - name: Install forge-std
+        run: cd blockchain/contracts && forge install foundry-rs/forge-std --no-git
+
       - name: Start the KAURAX devnet
         run: ./infra/scripts/devnet/start.sh
 

@@ -62,7 +62,7 @@ Layer-1 and has no security of its own.
 
 | Document | Topic |
 |---|---|
-| [TEST_STATUS.md](./TEST_STATUS.md) | **Canonical.** All 499 tests per suite, and what is *not* run |
+| [TEST_STATUS.md](./TEST_STATUS.md) | **Canonical.** All 529 tests per suite, and what is *not* run |
 | [REPRODUCIBLE_BUILD.md](./REPRODUCIBLE_BUILD.md) | Every command with its observed output |
 | [architecture/OVERVIEW.md](./architecture/OVERVIEW.md) | The system with trust labels on each edge |
 | [WHY_KAURAX.md](./WHY_KAURAX.md) | Ten questions, answered directly |

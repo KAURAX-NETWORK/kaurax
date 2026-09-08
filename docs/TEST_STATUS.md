@@ -2,7 +2,11 @@
 
 **Verified:** 2026-09-08 · **Commit:** `40b4aee`
 
-Every number below came from running the command shown, on this commit. None is quoted from
+Every number below came from running the command shown, on this commit.
+
+**`tests/check-doc-counts.sh` enforces this in CI.** These totals must equal what the suites
+report, and no other document may contradict them. The counts drifted four times before that
+gate existed, each corrected by hand and each time only because someone happened to look. None is quoted from
 an earlier report. When these drift, the fix is to re-run and update — not to adjust the
 number.
 
@@ -10,7 +14,7 @@ number.
 
 ## Solidity — `forge test`
 
-**322 passed · 0 failed · 0 skipped · 17 suites**
+**338 passed · 0 failed · 0 skipped · 18 suites**
 
 | Suite | Tests | Covers |
 |---|---|---|
@@ -75,10 +79,10 @@ discloses its own trust assumptions.
 
 | | |
 |---|---|
-| Solidity | **322** |
-| Node and services | **165** |
+| Solidity | **338** |
+| Node and services | **179** |
 | Live end-to-end | **12** |
-| **Total automated** | **499** |
+| **Total automated** | **529** |
 
 A count is evidence of coverage, not of correctness. The adversarial suites matter more than
 the total: they use real attacker contracts rather than asserting intent.

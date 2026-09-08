@@ -141,6 +141,10 @@ Solidity, no TypeScript. The repository's claim that these do not exist is accur
 
 ## 7. Tests — counted, not quoted
 
+> **Point-in-time record.** These are the counts as they stood *before* the fault-proof work
+> this audit precedes. They are deliberately not updated: revising them would misrepresent
+> what was measured at the time. Current counts are in [TEST_STATUS.md](TEST_STATUS.md).
+
 `forge test`: **270 passed**, 14 suites. Relevant suites: `DisputeGame.t.sol` 41,
 `KauraxPortal.t.sol` 25, `ForcedInclusion.t.sol` 21, `KauraxL2OutputOracle.t.sol` 13,
 `MerkleTree.t.sol` 8, plus `DisputeGameAdversarial.t.sol`.

@@ -14,13 +14,13 @@ Re-run at audit time, not copied from an earlier document.
 
 | Check | Command | Result |
 |---|---|---|
-| Solidity tests | `forge test` | **322 passed**, 0 failed, 17 suites |
-| Node / service tests | `pnpm test` | **165 passed**, 26/26 packages |
+| Solidity tests | `forge test` | **338 passed**, 0 failed, 18 suites |
+| Node / service tests | `pnpm test` | **179 passed**, 26/29 packages |
 | Live end-to-end | `tests/e2e-testnet.sh` | **12 passed** against the public testnet |
 | Types | `pnpm typecheck` | 25/25 |
 | Builds | `pnpm build` | 19/19 |
 | Formatting | `forge fmt --check` | clean |
-| **Total automated** | | **499** |
+| **Total automated** | | **529** |
 
 Not run here: **Slither** — `cbor2` does not build against Python 3.15 on this machine. This
 is recorded in [TEST_STATUS.md](TEST_STATUS.md) rather than omitted, and
@@ -118,7 +118,7 @@ machine-readable on chain is checkable.
 | 1 | Fault proof absence stated before the feature list, in README and org profile | ✅ |
 | 2 | Trust model published with strict vocabulary and per-row evidence | ✅ [SECURITY_MODEL.md](SECURITY_MODEL.md) |
 | 3 | Open findings disclosed with status | ✅ 3 HIGH open, 9 fixed — [SECURITY_STATUS.md](SECURITY_STATUS.md) |
-| 4 | Test counts accurate and verified by execution | ✅ 499, re-run at audit time |
+| 4 | Test counts accurate and verified by execution | ✅ 529, re-run at audit time |
 | 5 | No fabricated metrics anywhere | ✅ TVL/users/TPS/partners/investors all "No data available" |
 | 6 | No token sale, tokenomics or monetary claim | ✅ scan clean; KAX stated to have no value |
 | 7 | Reproducible build instructions with observed output | ✅ [REPRODUCIBLE_BUILD.md](REPRODUCIBLE_BUILD.md) |
@@ -152,7 +152,7 @@ Conflating these is the most common way a project overstates itself, so they are
 
 | | Status | Basis |
 |---|---|---|
-| **PUBLIC TESTNET** | ✅ **Ready — and live** | Chain producing blocks; 10 apps under one domain; 499 tests; 12 live end-to-end checks; RPC public |
+| **PUBLIC TESTNET** | ✅ **Ready — and live** | Chain producing blocks; 10 apps under one domain; 529 tests; 12 live end-to-end checks; RPC public |
 | **GRANT READY** | ✅ **Ready** | Trust model, open findings, reproducible builds, milestones with external acceptance tests, budget in engineer-months, no fabricated metrics. 11/12 checklist items; the twelfth **is** the request |
 | **MAINNET READY** | ❌ **Not ready — 52/100** | No fault proofs, no verifier, no proving VM, no external audit, one sequencer, guardian-decided disputes |
 

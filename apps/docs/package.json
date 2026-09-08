@@ -12,7 +12,9 @@
     "test": "echo \"no unit tests in @kaurax/app-docs; renders the repository's own docs/\"",
     "clean": "rm -rf .next",
     "prebuild": "node scripts/collect-docs.mjs",
-    "predev": "node scripts/collect-docs.mjs"
+    "predev": "node scripts/collect-docs.mjs",
+    "pretypecheck": "node scripts/collect-docs.mjs",
+    "prelint": "node scripts/collect-docs.mjs"
   },
   "dependencies": {
     "@kaurax/types": "workspace:*",

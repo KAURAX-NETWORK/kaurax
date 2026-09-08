@@ -29,11 +29,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile=false
 
+      # `pnpm --filter` runs the package script directly and bypasses turbo, so the
+      # workspace packages an app imports — @kaurax/types, @kaurax/ui — were never built and
+      # tsc could not find their declarations. turbo.json already declares that typecheck and
+      # build depend on ^build; going through turbo is what makes that declaration apply.
       - name: Typecheck
-        run: pnpm --filter "./apps/${{ matrix.app }}" typecheck
+        run: pnpm turbo run typecheck --filter="./apps/${{ matrix.app }}"
 
       - name: Build
-        run: pnpm --filter "./apps/${{ matrix.app }}" build
+        run: pnpm turbo run build --filter="./apps/${{ matrix.app }}"
         env:
           # Build-time values only. No secret is ever a NEXT_PUBLIC_ variable — the AI key
           # and the database URL live on the API server, never in a frontend bundle.

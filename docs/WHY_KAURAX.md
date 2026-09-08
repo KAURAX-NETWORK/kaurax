@@ -49,7 +49,7 @@ and tested:
 EVM-equivalent execution. Real settlement contracts. Data availability verified by
 reconstruction. Deposits derived from L2 events. Forced inclusion verified live.
 Proof-based withdrawals. A bonded dispute game with bisection. Governance holding every
-privileged role. Wallet, CLI, faucet, explorer, indexer, API. 499 automated tests.
+privileged role. Wallet, CLI, faucet, explorer, indexer, API. 529 automated tests.
 
 ## 6. What does not work today
 

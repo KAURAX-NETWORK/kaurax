@@ -28,7 +28,7 @@ one.
 | Data availability is real | `tests/acceptance.ts` rebuilds a signed transaction from L2 calldata alone |
 | Forced inclusion works | Force a transaction; settlement halts until it is included, then resumes |
 | The dispute game runs | Play one on the testnet; bonds, bisection and resolution execute |
-| 499 tests pass | `forge test` (322), `pnpm test` (165), `tests/e2e-testnet.sh` (12) |
+| 529 tests pass | `forge test` (338), `pnpm test` (165), `tests/e2e-testnet.sh` (12) |
 | Builds are reproducible | [../REPRODUCIBLE_BUILD.md](../REPRODUCIBLE_BUILD.md) |
 
 Every row is a command, not an assertion.

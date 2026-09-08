@@ -70,7 +70,7 @@ that would be audited exists.
 
 | Gate | State |
 |---|---|
-| Unit tests | ✅ 322 Solidity, 165 node |
+| Unit tests | ✅ 338 Solidity, 179 node |
 | Adversarial tests | ✅ 44 integration, 46 contract-level |
 | Property / fuzz | ✅ 10 KVS properties, 2 game fuzz at 256 runs, 5 Merkle |
 | Differential | ✅ 404 cases, two independent implementations |

@@ -182,7 +182,7 @@ deployment.
 
 ## 7. Tests
 
-**499 automated** — 322 Solidity (17 suites), 165 node (26 packages), 12 live end-to-end.
+**529 automated** — 338 Solidity (18 suites), 179 node (29 packages), 12 live end-to-end.
 Plus `tests/`: acceptance (545 TS), apps-smoke (438), chaos (282), load (218),
 forced-inclusion (174), api-smoke (188), live-check (125).
 

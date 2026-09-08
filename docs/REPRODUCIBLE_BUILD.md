@@ -124,7 +124,7 @@ not a failure.
 | Solidity | 270 |
 | Node and services | 126 |
 | Live end-to-end | 12 |
-| **Total** | **499** |
+| **Total** | **529** |
 
 If your numbers differ, the documentation is stale — please open an issue rather than
 assuming your environment is wrong. Current status: [TEST_STATUS.md](TEST_STATUS.md).

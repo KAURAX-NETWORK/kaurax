@@ -38,7 +38,7 @@ report.
 
 ## Tests
 
-- [x] Contract tests — 322 passed
+- [x] Contract tests — 338 passed
 - [x] Package tests — 126 passed
 - [x] Live E2E — 12 passed
 - [x] Typecheck — 25/25 tasks

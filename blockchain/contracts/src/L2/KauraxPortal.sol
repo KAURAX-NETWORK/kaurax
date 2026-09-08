@@ -356,6 +356,11 @@ contract KauraxPortal is IKauraxPortal, IForcedInclusion {
     }
 
     /// @inheritdoc IKauraxPortal
+    /// @dev slither reports reentrancy-eth here because `l3Sender` is written after the
+    ///      external call. Re-entry is refused on the first line of the function, and the
+    ///      withdrawal is marked finalized before the call, so the only post-call write is
+    ///      clearing the sentinel. Suppressed for that reason, not to quiet the gate.
+    // slither-disable-next-line reentrancy-eth
     function finalizeWithdrawalTransaction(Types.WithdrawalTransaction memory _tx) external whenNotPaused {
         if (l3Sender != NOT_ENTERED) revert ReentrantFinalize();
         if (_tx.target == address(this)) revert TargetIsPortal();
@@ -387,6 +392,10 @@ contract KauraxPortal is IKauraxPortal, IForcedInclusion {
         finalizedWithdrawals[withdrawalHash] = true;
         l3Sender = _tx.sender;
 
+        // slither-disable-next-line arbitrary-send-eth
+        // The target is not arbitrary: it comes from a withdrawal proven by Merkle inclusion
+        // against a finalized output root. Sending to a caller-chosen address is what a
+        // bridge does; the proof is what makes it safe.
         (bool success,) = _tx.target.call{value: _tx.value, gas: _tx.gasLimit}(_tx.data);
 
         l3Sender = NOT_ENTERED;

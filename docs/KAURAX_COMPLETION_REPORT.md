@@ -182,7 +182,7 @@ Settlement disputes remain guardian-resolved.
 
 | Suite | Result |
 |---|---|
-| `forge test` | **322 passed**, 0 failed, 17 suites |
+| `forge test` | **338 passed**, 0 failed, 18 suites |
 | `pnpm test` | **179 passed**, 29 packages |
 | Fault-proof properties | **10 passed** |
 | Security + adversarial | **44 passed** |
