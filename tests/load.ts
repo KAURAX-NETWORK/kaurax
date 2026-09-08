@@ -94,18 +94,44 @@ async function main(): Promise<void> {
   // Independent senders, because one account's nonce sequence would serialise everything
   // and measure the mempool's ordering rather than the chain's throughput.
   console.log(`\nfunding ${SENDERS} sender accounts…`);
-  const senders = await Promise.all(
-    Array.from({length: SENDERS}, async () => {
-      const account = privateKeyToAccount(generatePrivateKey());
-      const hash = await funderWallet.sendTransaction({to: account.address, value: parseEther("1")});
-      await publicClient.waitForTransactionReceipt({hash});
-      return {
-        account,
-        wallet: createWalletClient({account, chain, transport: http(RPC)}),
-        nonce: 0,
-      };
-    }),
-  );
+
+  // Nonces are assigned here, not left to the client.
+  //
+  // These sends run concurrently from ONE account. Without an explicit nonce, viem asks the
+  // node for the pending nonce per transaction, every in-flight request gets the same
+  // answer, and the node rejects all but the first with "replacement transaction
+  // underpriced". The main loop below already assigns nonces by hand for exactly this
+  // reason; the funding phase did not, so the load test could not get past its own setup —
+  // which is why this repository had no measured throughput figures.
+  // Funding goes out in batches, because the mempool caps how many transactions one account
+  // may have queued (`maxPerSender`, 64 today). Funding 150 senders in one burst asks the
+  // funder to queue 150 and the node correctly refuses with "too many queued transactions"
+  // — a limit doing its job, which the harness then reported as a failed load test.
+  const FUND_BATCH = 32;
+  let funderNonce = await publicClient.getTransactionCount({address: funder.address});
+  const senders: {account: ReturnType<typeof privateKeyToAccount>; wallet: ReturnType<typeof createWalletClient>; nonce: number}[] = [];
+
+  for (let start = 0; start < SENDERS; start += FUND_BATCH) {
+    const size = Math.min(FUND_BATCH, SENDERS - start);
+    const batch = await Promise.all(
+      Array.from({length: size}, async (_unused, i) => {
+        const account = privateKeyToAccount(generatePrivateKey());
+        const hash = await funderWallet.sendTransaction({
+          to: account.address,
+          value: parseEther("1"),
+          nonce: funderNonce + i,
+        });
+        await publicClient.waitForTransactionReceipt({hash});
+        return {
+          account,
+          wallet: createWalletClient({account, chain, transport: http(RPC)}),
+          nonce: 0,
+        };
+      }),
+    );
+    funderNonce += size;
+    senders.push(...batch);
+  }
   console.log(`funded (1 KAX each, funder now holds ${formatEther(await publicClient.getBalance({address: funder.address}))} KAX)`);
 
   const blockTimeSeconds = Number(process.env.KAURAX_BLOCK_TIME ?? 2);
@@ -135,7 +161,16 @@ async function main(): Promise<void> {
           error: receipt.status === "success" ? null : "reverted",
         });
       } catch (error) {
-        samples.push({submitMs: Date.now() - t0, inclusionMs: null, block: null, error: (error as Error).message});
+        // viem's `message` is a generic wrapper ("Missing or invalid parameters"); the
+        // node's actual reason lives in `details`. Recording only the wrapper made a
+        // saturation run report 2680 identical, meaningless failures.
+        const e = error as Error & {details?: string; shortMessage?: string};
+        samples.push({
+          submitMs: Date.now() - t0,
+          inclusionMs: null,
+          block: null,
+          error: e.details ?? e.shortMessage ?? e.message,
+        });
       }
 
       const done = samples.length;
@@ -167,6 +202,22 @@ async function main(): Promise<void> {
   console.log(`  submitted             ${samples.length}`);
   console.log(`  included successfully ${included.length}`);
   console.log(`  failed                ${failed.length}`);
+
+  // Not just how many failed, but why. A run that reports "2827 failed" and nothing else
+  // says the chain broke without saying how it broke, and the two most likely causes — a
+  // rate limit doing its job, and a node falling over — call for opposite responses.
+  if (failed.length > 0) {
+    const reasons = new Map<string, number>();
+    for (const s of failed) {
+      // Collapse to the first line: viem appends the whole request for context, which is
+      // useful in a stack trace and useless in a histogram.
+      const key = (s.error ?? "unknown").split("\n")[0]!.trim().slice(0, 72);
+      reasons.set(key, (reasons.get(key) ?? 0) + 1);
+    }
+    for (const [reason, count] of [...reasons.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
+      console.log(`    ${String(count).padStart(6)}  ${reason}`);
+    }
+  }
   console.log(`  wall clock            ${wallSeconds.toFixed(1)} s`);
   console.log(`  blocks produced       ${endBlock - startBlock} (${startBlock} → ${endBlock})`);
   console.log(`  blocks carrying load  ${blocksUsed}`);
