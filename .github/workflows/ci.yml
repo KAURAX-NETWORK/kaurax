@@ -78,6 +78,17 @@ jobs:
       - name: End-to-end acceptance test
         run: ./tests/acceptance.sh
 
+      # Hostile input at the protocol edge. These need a running chain, so they cannot live in
+      # the default `pnpm test` — a fresh clone must be able to run its tests without one.
+      # Examples are read constantly and run almost never, which is how they rot.
+      - name: Examples still work
+        run: ./tests/examples-smoke.sh
+
+      - name: Security and adversarial suites
+        run: pnpm --filter @kaurax/tests test:integration
+        env:
+          KAURAX_RPC_URL: http://127.0.0.1:8420
+
       # The indexer and API are verified against the same live chain the acceptance test
       # just exercised, so this covers the real data path rather than a fixture.
       - name: Start the indexer and API
@@ -105,6 +116,17 @@ jobs:
           echo "--- kaurax-node ---"; tail -100 .devnet/kaurax-node.log || true
           echo "--- indexer ---";     tail -60  /tmp/indexer.log        || true
           echo "--- api ---";         tail -60  /tmp/api.log            || true
+
+      # A CI runner is always a clean machine, so the first start.sh always worked and the
+      # *second* one on any developer's laptop did not: start.sh creates fresh anvil chains
+      # but used to leave the previous chain's derivation cursor and sequencer WAL behind,
+      # and the node correctly refused to derive against a chain that no longer existed.
+      # Restarting here is the only way CI can see what every returning developer saw.
+      - name: The devnet must be restartable, not just startable
+        run: |
+          ./infra/scripts/devnet/stop.sh
+          ./infra/scripts/devnet/start.sh
+          ./infra/scripts/devnet/status.sh
 
       - name: Stop the devnet
         if: always()
@@ -153,7 +175,13 @@ jobs:
           exit $FAILED
 
       - name: Node unit-test coverage
-        run: pnpm --filter @kaurax/l3 exec vitest run --coverage.enabled --coverage.reporter=text || true
+        # `|| true` used to hide that @vitest/coverage-v8 was not installed at all, so this
+        # step printed nothing and passed for as long as it has existed. The dependency is
+        # now present and the command must succeed. There is deliberately no percentage
+        # gate: node unit coverage is 12% and gating at a number the repository does not meet
+        # would mean either a failing pipeline or a threshold set low enough to be
+        # meaningless. docs/TESTING_REPORT.md says what is actually covered and by what.
+        run: pnpm --filter @kaurax/l3 exec vitest run --coverage.enabled --coverage.reporter=text
 
       - uses: actions/upload-artifact@v4
         if: always()

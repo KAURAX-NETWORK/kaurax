@@ -7,17 +7,25 @@
     "acceptance": "tsx acceptance.ts",
     "apps": "tsx apps-smoke.ts",
     "load": "tsx load.ts",
-    "chaos": "bash chaos.sh"
+    "chaos": "bash chaos.sh",
+    "test": "vitest run fault-proofs",
+    "test:security": "vitest run security",
+    "test:fault-proofs": "vitest run fault-proofs",
+    "test:adversarial": "vitest run adversarial",
+    "test:integration": "vitest run security adversarial"
   },
   "dependencies": {
     "@kaurax/l3": "workspace:*",
     "dotenv": "^16.4.7",
     "viem": "^2.56.3",
-    "@kaurax/types": "workspace:*"
+    "@kaurax/types": "workspace:*",
+    "@kaurax/kvs": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "@types/node": "^22.10.2"
+    "@types/node": "^22.10.2",
+    "vitest": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.8"
   }
 }
