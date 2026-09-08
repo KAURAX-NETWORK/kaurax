@@ -1,0 +1,37 @@
+{
+  "name": "@kaurax/kvs",
+  "version": "0.1.0",
+  "description": "KAURAX Verifiable Subset \u2014 deterministic execution model, trace commitments and step proofs",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist",
+    "fixtures": "tsx scripts/generate-fixtures.ts && tsx scripts/generate-game-fixture.ts",
+    "game-fixture": "tsx scripts/generate-game-fixture.ts"
+  },
+  "dependencies": {
+    "viem": "^2.21.55"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2",
+    "vitest": "^2.1.8",
+    "tsx": "^4.19.2",
+    "@vitest/coverage-v8": "^2.1.8"
+  }
+}

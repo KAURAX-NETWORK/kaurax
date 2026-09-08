@@ -65,12 +65,15 @@ is unrecoverable and MIPS has the most adversarial review behind it.
 After every instruction, hash the machine's whole state — registers, memory, program
 counter. Those hashes form a Merkle tree whose root commits to the entire execution.
 
-KAURAX produces nothing of the kind today. This is the largest single piece of work.
+KAURAX's *node* produces nothing of the kind today, and that remains the largest single
+piece of work. A commitment scheme and an emulator that produces such traces now exist for a
+documented EVM subset — `packages/kvs`, `docs/FAULT_PROOFS.md` — but nothing connects them to
+KAURAX block production.
 
 ### 3.3 A one-step verifier
 
 ```solidity
-/// NOT IMPLEMENTED. Specified, deliberately absent from src/.
+/// Implemented for the KVS subset as `KauraxOneStepVerifier`, NOT for KAURAX execution.
 interface IOneStepVerifier {
     function step(bytes32 preState, bytes calldata proof, bytes calldata preimages)
         external view returns (bytes32 postState);
