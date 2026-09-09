@@ -23,6 +23,17 @@ import {dirname, resolve} from "node:path";
 import {config as loadDotenv} from "dotenv";
 import {erc20Abi, kauraxNamesAbi, launchpadAbi, swapFactoryAbi, swapPairAbi, swapRouterAbi, SALE_STATUS} from "@kaurax/types";
 
+/** Not on the shared ABI: only the seeding path below needs it. */
+const swapFactoryCreateAbi = [
+  {
+    type: "function",
+    name: "createPair",
+    stateMutability: "nonpayable",
+    inputs: [{name: "tokenA", type: "address"}, {name: "tokenB", type: "address"}],
+    outputs: [{type: "address"}],
+  },
+] as const;
+
 function findRepoRoot(from: string): string {
   let dir = from;
   for (let i = 0; i < 12; i++) {
@@ -159,9 +170,33 @@ async function main(): Promise<void> {
   // ----------------------------------------------------------------- Swap --
   head("KAURAX Swap");
 
-  const pairCount = (await pub.readContract({
+  let pairCount = (await pub.readContract({
     address: FACTORY, abi: swapFactoryAbi, functionName: "allPairsLength",
   })) as bigint;
+
+  // A chain nobody has traded on has no pools, and the whole section below used to be
+  // reported as a failure because of it — which said nothing about the AMM and made a
+  // fresh devnet look broken. Seed one instead. On the live testnet pools already exist
+  // and none of this runs.
+  if (pairCount === 0n) {
+    const seedToken = await deployTestToken();
+    if (seedToken) {
+      const madePair = await send(FACTORY, swapFactoryCreateAbi, "createPair", [seedToken, WKAX]);
+      check("created the first pair on a chain that had none", madePair);
+
+      const seedTokens = parseEther("10000");
+      await send(seedToken, erc20Abi, "approve", [ROUTER, seedTokens]);
+      const seedDeadline = (await pub.getBlock({blockTag: "latest"})).timestamp + 1200n;
+      const seeded = await send(ROUTER, swapRouterAbi, "addLiquidityKAX",
+        [seedToken, seedTokens, 0n, 0n, account.address, seedDeadline], parseEther("10"));
+      check("seeded it with initial liquidity", seeded);
+
+      pairCount = (await pub.readContract({
+        address: FACTORY, abi: swapFactoryAbi, functionName: "allPairsLength",
+      })) as bigint;
+    }
+  }
+
   check("factory reports its pairs", pairCount >= 0n, `${pairCount} pair(s)`);
 
   if (pairCount > 0n) {
@@ -306,9 +341,35 @@ async function main(): Promise<void> {
   // ------------------------------------------------------------ Launchpad --
   head("KAURAX Launchpad");
 
-  const saleCount = (await pub.readContract({
+  let saleCount = (await pub.readContract({
     address: LAUNCHPAD, abi: launchpadAbi, functionName: "saleCount",
   })) as bigint;
+
+  // Same reasoning as the swap pool: seed one so the inspection below runs on any chain,
+  // not only on one somebody has already used. The creation section further down still
+  // exercises createSale properly; this only establishes a sale to read.
+  if (saleCount === 0n) {
+    const seedToken = await deployTestToken();
+    if (seedToken) {
+      const rate = parseEther("1000");
+      const hard = parseEther("10");
+      const needed = (hard * rate) / 10n ** 18n;
+      const openAt = (await pub.getBlock({blockTag: "latest"})).timestamp;
+      const madeSale = await send(LAUNCHPAD, launchpadAbi, "createSale", [
+        seedToken, rate, needed, parseEther("2"), hard,
+        parseEther("0.1"), parseEther("5"), openAt + 60n, openAt + 3600n, "ipfs://seed",
+      ]);
+      check("created the first sale on a chain that had none", madeSale);
+
+      await send(seedToken, erc20Abi, "approve", [LAUNCHPAD, needed]);
+      await send(LAUNCHPAD, launchpadAbi, "depositTokens", [0n]);
+
+      saleCount = (await pub.readContract({
+        address: LAUNCHPAD, abi: launchpadAbi, functionName: "saleCount",
+      })) as bigint;
+    }
+  }
+
   check("launchpad reports its sales", saleCount >= 0n, `${saleCount} sale(s)`);
 
   if (saleCount > 0n) {
