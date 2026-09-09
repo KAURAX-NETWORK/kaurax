@@ -37,6 +37,14 @@ jobs:
       - name: Documented test counts match the suites
         run: ./tests/check-doc-counts.sh
 
+      # KVSVerifier.t.sol compares the Solidity verifier against a committed fixture, not
+      # against the live emulator, so an emulator change leaves it passing against a stale
+      # artefact while the two implementations diverge. Regenerating is the only thing that
+      # catches it: with VERYLOW changed from 3 to 4, all 29 emulator tests and all 6
+      # verifier tests still passed.
+      - name: The KVS fixtures still match the reference emulator
+        run: ./tests/check-kvs-fixtures.sh
+
       - name: Unit tests
         run: pnpm test
 

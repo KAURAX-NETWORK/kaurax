@@ -1,5 +1,16 @@
 # KAURAX — Fault Proof Roadmap
 
+> **SUPERSEDED IN PART — read this first.** This document was written **before** the KAURAX
+> Verifiable Subset was built, and its statement that no verifier exists is no longer true. A
+> real one-step verifier now exists for the KVS (`src/kvs/KauraxOneStepVerifier.sol`) and is
+> deliberately not connected to settlement.
+>
+> The conclusion is unchanged and still correct: **KAURAX has no fault proof over its own
+> execution.** For the current position, read
+> [FAULT_PROOF_GAP_ANALYSIS.md](FAULT_PROOF_GAP_ANALYSIS.md), which measures the remaining
+> distance against the code. This file is kept because its engineering reasoning is still
+> sound and because quietly rewriting it would remove the trail.
+
 **KAURAX has no fault proof system.** This document explains precisely what is missing, why
 the current design is what it is, and what building the real thing would take.
 
