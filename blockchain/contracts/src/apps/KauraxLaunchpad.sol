@@ -358,9 +358,7 @@ contract KauraxLaunchpad {
     }
 
     // slither-disable-next-line arbitrary-send-eth
-
     function _sendKAX(address to, uint256 amount) internal {
-        // slither-disable-next-line arbitrary-send-eth
         // `to` is a contributor claiming their own refund or the sale owner claiming
         // proceeds; both are established by the sale's accounting before this is reached.
         (bool ok,) = payable(to).call{value: amount}("");

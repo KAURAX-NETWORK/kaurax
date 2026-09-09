@@ -419,7 +419,6 @@ contract KauraxFaultDisputeGame {
 
     // slither-disable-next-line arbitrary-send-eth
     function _pay(address _to, uint256 _amount) internal {
-        // slither-disable-next-line arbitrary-send-eth
         // Reached only from `withdraw`, where `_to` is msg.sender and their credit is zeroed
         // before this runs. The address is the caller's own, not one they chose for someone
         // else's funds.

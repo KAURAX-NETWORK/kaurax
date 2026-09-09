@@ -337,7 +337,6 @@ contract KauraxNames {
     // slither-disable-next-line arbitrary-send-eth
     function _settle(uint256 price, uint256 provided) internal {
         if (price > 0) {
-            // slither-disable-next-line arbitrary-send-eth
             // `treasury` is contract state set by the owner, not a caller-supplied address.
             (bool paid,) = payable(treasury).call{value: price}("");
             if (!paid) revert PaymentFailed();
