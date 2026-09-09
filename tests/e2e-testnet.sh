@@ -42,7 +42,7 @@ bad()  { printf '  %s✗%s %s\n' "$RED" "$RESET" "$1"; FAIL=$((FAIL+1)); }
 # A function, not a string: the repository path may contain spaces, and an unquoted command
 # string splits on them.
 cli() { node "$ROOT/packages/cli/dist/index.js" "$@"; }
-[ -f "$ROOT/packages/cli/dist/index.js" ] || { echo "build the CLI first: pnpm --filter @kaurax/cli build"; exit 1; }
+[ -f "$ROOT/packages/cli/dist/index.js" ] || { echo "build the CLI first: pnpm turbo run build --filter=@kaurax/cli"; exit 1; }
 
 printf '%sKAURAX end-to-end%s %s%s%s\n' "$BOLD" "$RESET" "$DIM" "$KAURAX_RPC_URL" "$DIM$RESET"
 

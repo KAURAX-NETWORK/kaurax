@@ -122,7 +122,7 @@ kill_pidfile() { # kill_pidfile <name> <signal>
     case "$1" in
       indexer|api)
         fail "$1 is not running — devnet/start.sh does not start it"
-        step "start both:  set -a; . ./.env; set +a; pnpm --filter @kaurax/indexer --filter @kaurax/api build"
+        step "start both:  set -a; . ./.env; set +a; pnpm turbo run build --filter=@kaurax/indexer --filter=@kaurax/api"
         step "             node services/indexer/dist/index.js & node services/api/dist/index.js &"
         ;;
       *)

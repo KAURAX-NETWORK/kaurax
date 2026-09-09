@@ -54,7 +54,7 @@ anything.
 
 ```bash
 pnpm install
-pnpm --filter @kaurax/cli build
+pnpm turbo run build --filter=@kaurax/cli
 
 export KAURAX_RPC_URL=https://kaurax.network/rpc
 export KAURAX_API_URL=https://kaurax.network

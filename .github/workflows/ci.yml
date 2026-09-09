@@ -113,7 +113,10 @@ jobs:
         run: |
           set -a; . ./.env; set +a
           export DATABASE_URL=postgresql://kaurax:kaurax_ci@127.0.0.1:5432/kaurax
-          pnpm --filter @kaurax/indexer build && pnpm --filter @kaurax/api build
+          # turbo, not `pnpm --filter`: the filter builds only the named package, so
+          # @kaurax/types stayed unbuilt and tsc could not resolve its declarations.
+          # turbo.json declares dependsOn: ["^build"], so this builds dependencies first.
+          pnpm turbo run build --filter=@kaurax/indexer --filter=@kaurax/api
           node services/indexer/dist/index.js > /tmp/indexer.log 2>&1 &
           sleep 8
           node services/api/dist/index.js > /tmp/api.log 2>&1 &
