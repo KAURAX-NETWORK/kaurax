@@ -60,6 +60,30 @@ function encodeAddressArg(address: string): string {
   return address.toLowerCase().replace(/^0x/, "").padStart(64, "0");
 }
 
+/**
+ * Poll for a receipt, mining if the engine is not doing it for us.
+ *
+ * Genesis runs against an engine that may or may not be automining, depending on whether
+ * kaurax-node has attached yet. Asking it to mine is harmless when it already does.
+ */
+async function waitForReceipt(
+  engineUrl: string,
+  hash: Hex,
+  attempts = 40,
+): Promise<{contractAddress: Hex; status: Hex} | null> {
+  for (let i = 0; i < attempts; i++) {
+    const receipt = await rpc<{contractAddress: Hex; status: Hex} | null>(
+      engineUrl,
+      "eth_getTransactionReceipt",
+      [hash],
+    );
+    if (receipt) return receipt;
+    await rpc(engineUrl, "evm_mine", []).catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return null;
+}
+
 async function main(): Promise<void> {
   const engineUrl = process.env.KAURAX_ENGINE_RPC_URL ?? "http://127.0.0.1:18420";
   const l2BridgeAddress = process.env.KAURAX_L2_BRIDGE_ADDRESS;
@@ -109,10 +133,24 @@ async function main(): Promise<void> {
   const deployTx = await rpc<Hex>(engineUrl, "eth_sendTransaction", [
     {from: deployer, data: initCode, gas: "0x7a1200"},
   ]);
-  const receipt = await rpc<{contractAddress: Hex; status: Hex}>(engineUrl, "eth_getTransactionReceipt", [
-    deployTx,
-  ]);
-  if (!receipt || receipt.status !== "0x1") {
+
+  // Wait for the receipt instead of assuming one exists.
+  //
+  // Reading it immediately only works while the engine is automining. kaurax-node turns
+  // automine off as soon as it attaches, so whether genesis succeeded came down to which
+  // happened first — and on a CI runner the node usually won. A pending transaction returns
+  // a null receipt, which this code then reported as "deployment reverted": the wrong
+  // diagnosis for a transaction that had not been mined at all.
+  //
+  // Mining explicitly makes genesis independent of that race rather than lucky.
+  const receipt = await waitForReceipt(engineUrl, deployTx);
+  if (!receipt) {
+    throw new Error(
+      `KauraxL3ERC20Bridge deployment ${deployTx} was never mined. The engine may have ` +
+        `automine disabled and be refusing evm_mine.`,
+    );
+  }
+  if (receipt.status !== "0x1") {
     throw new Error("KauraxL3ERC20Bridge deployment reverted during genesis");
   }
 

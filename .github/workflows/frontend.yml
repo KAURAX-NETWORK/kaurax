@@ -50,14 +50,25 @@ jobs:
 
       # Grepping source for secret *names* is not enough — a name can legitimately appear
       # in help text. This checks the built output for anything shaped like a real key.
-      - name: Scan the built bundle for key-shaped literals
+      # Any 32-byte hex used to fail this. That is unusable: every crypto library bundles
+      # curve constants — secp256k1's field prime and group order, BLS12-381 parameters,
+      # ERC-6492's magic bytes — and contract bytecode is a long hex string too. This step
+      # matched all of them, so it could only ever have passed on an app that shipped no
+      # cryptography.
+      #
+      # What actually distinguishes a leaked key is not its shape but what it is bound to.
+      # Minification keeps property names, so `privateKey:"0x…"` survives into the bundle.
+      # This is the same test the source scanner applies, pointed at the built output.
+      - name: Scan the built bundle for keys bound to key-like names
         run: |
-          if grep -rqE '0x[0-9a-f]{64}' "apps/${{ matrix.app }}/.next/static/" 2>/dev/null; then
-            echo "::error::A 32-byte hex literal was found in a client bundle for ${{ matrix.app }}."
-            grep -rlE '0x[0-9a-f]{64}' "apps/${{ matrix.app }}/.next/static/" | head -5
+          DIR="apps/${{ matrix.app }}/.next/static/"
+          PATTERN='(private[_-]?key|secret|mnemonic|seed[_-]?phrase|signer[_-]?key|deployer[_-]?key)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?0x[0-9a-fA-F]{64}'
+          if grep -rqEi "$PATTERN" "$DIR" 2>/dev/null; then
+            echo "::error::A key-shaped literal bound to a key-like name is in the ${{ matrix.app }} client bundle."
+            grep -rlEi "$PATTERN" "$DIR" | head -5
             exit 1
           fi
-          echo "no key-shaped literals in the ${{ matrix.app }} client bundle"
+          echo "no key-shaped literals bound to key-like names in the ${{ matrix.app }} client bundle"
 
   # Guards the rule that matters most for the frontends: a secret must never be bundled.
   secret-leak-check:

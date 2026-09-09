@@ -19,8 +19,13 @@ jobs:
         with: {version: 10.28.0}
       - uses: actions/setup-node@v4
         with: {node-version: 20, cache: pnpm}
+      # The doc-count gate below runs `forge test` to learn the real number, so this job
+      # needs Foundry as well as node.
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: {version: stable}
 
       - run: pnpm install --frozen-lockfile=false
+      - run: cd blockchain/contracts && forge install foundry-rs/forge-std --no-git
 
       # turbo builds dependencies first, so packages see each other's declarations.
       - name: Typecheck
@@ -184,6 +189,12 @@ jobs:
             }
           done
           exit $FAILED
+
+      # vitest is invoked directly rather than through turbo, so nothing builds the
+      # workspace packages the tests import — test/signer.test.ts could not resolve
+      # @kaurax/signer because its dist/ did not exist.
+      - name: Build workspace packages the tests import
+        run: pnpm --filter "@kaurax/l3^..." build
 
       - name: Node unit-test coverage
         # `|| true` used to hide that @vitest/coverage-v8 was not installed at all, so this

@@ -19,10 +19,22 @@ jobs:
       # not a warning to read later, it is a key to rotate now. fetch-depth 0 above means
       # the whole history is scanned, not only the diff — a secret removed in a later
       # commit is still a secret anyone can check out.
+      #
+      # The official action refuses to run for an organization without a paid licence:
+      #   "[KAURAX-NETWORK] is an organization. License key is required."
+      # So from the moment this repository moved into the org, its headline secret gate
+      # stopped scanning anything and simply failed — which is the worst of both, since a
+      # red step nobody can make green is a step people stop reading.
+      #
+      # gitleaks itself is Apache-2.0. Running the binary keeps the gate real and free.
       - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=8.21.2
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks --version
+          # --redact so a finding never prints the secret into a public build log.
+          gitleaks detect --source . --no-banner --redact --exit-code 1
 
       # A committed .env is the failure mode that actually happens. Fail hard on it.
       - name: Reject committed environment files
