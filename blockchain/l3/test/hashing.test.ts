@@ -1,9 +1,14 @@
 /**
  * The TypeScript hashing must agree exactly with blockchain/contracts/src/libraries/Hashing.sol.
  *
- * The expected values below were produced by the Solidity implementation via `cast`
- * (see the comment above each). If either implementation changes, this fails — which is
- * the point: a divergence would either block every withdrawal or admit one that was never
+ * Most assertions below recompute the expectation with the same viem primitives the
+ * implementation uses. That checks the shape of the encoding, but it cannot catch a
+ * divergence from Solidity: both sides would move together.
+ *
+ * The `shared vectors` block is the part that does. Its literals were produced by
+ * `Hashing.sol` itself, and `blockchain/contracts/test/Hashing.t.sol` asserts the same
+ * literals for the same inputs. A change to either implementation now breaks a test on
+ * that side. A divergence would either block every withdrawal or admit one that was never
  * made.
  */
 import {describe, expect, it} from "vitest";
@@ -123,5 +128,36 @@ describe("withdrawal hashing", () => {
     // see an inclusion-proof failure instead of the real error.
     const bad = {...withdrawal, sender: withdrawal.sender.toUpperCase().replace("0X", "0x") as Hex};
     expect(() => hashWithdrawal(bad)).toThrow();
+  });
+});
+
+/**
+ * The two-sided pin. Do not "fix" a failure here by editing the constant: it means the
+ * TypeScript and Solidity hashing have diverged, and one of them is now wrong.
+ */
+describe("shared vectors with Hashing.sol", () => {
+  it("hashOutputRoot matches the Solidity vector", () => {
+    const proof = {
+      version: OUTPUT_ROOT_VERSION,
+      stateRoot: keccak256("0x01") as Hex,
+      withdrawalTreeRoot: keccak256("0x02") as Hex,
+      latestBlockHash: keccak256("0x03") as Hex,
+    };
+    expect(hashOutputRoot(proof)).toBe(
+      "0x7e966d2edb1884abe7c8d9ca2a7483df72b49dbe2c74d16508b8c3dd1ab6ae36",
+    );
+  });
+
+  it("hashWithdrawal matches the Solidity vector", () => {
+    expect(
+      hashWithdrawal({
+        nonce: 0n,
+        sender: "0x70997970c51812dc3a010c7d01b50e0d17dc79c8" as Hex,
+        target: "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc" as Hex,
+        value: 1_000_000_000_000_000_000n,
+        gasLimit: 100_000n,
+        data: "0x" as Hex,
+      }),
+    ).toBe("0x7ffde35851afa2b9f6c3b4299ca2c0d80cfdc730f1e7a799e03bcb2b996fe796");
   });
 });

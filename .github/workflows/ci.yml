@@ -178,10 +178,21 @@ jobs:
         run: |
           # Parses forge's summary table. A contract in this list must stay above 80% lines.
           FAILED=0
-          for FILE in KauraxPortal KauraxL2OutputOracle KauraxMultisig KauraxTimelock MerkleTree; do
+          # Every contract that holds value, decides who may move it, or defines a hash
+          # both implementations must agree on. The bridges were added after a reentrancy
+          # bug was found in one of them while it sat outside this list.
+          for FILE in KauraxPortal KauraxL2OutputOracle KauraxBatchInbox \
+                      KauraxL2ERC20Bridge KauraxL3ERC20Bridge KauraxBridgedERC20 \
+                      L3ToL2MessagePasser KauraxDisputeGame \
+                      KauraxMultisig KauraxTimelock \
+                      MerkleTree Hashing AddressAliasHelper; do
             LINE=$(grep -E "^\| src/.*${FILE}\.sol" coverage.txt || true)
             if [ -z "$LINE" ]; then
-              echo "::warning::no coverage row found for ${FILE}.sol"
+              # An error, not a warning. A name in this list with no row means the contract
+              # was renamed or the parse broke, and either way the floor is not being
+              # enforced on it — which looks exactly like passing.
+              echo "::error::no coverage row found for ${FILE}.sol; the floor is not being enforced"
+              FAILED=1
               continue
             fi
             PCT=$(echo "$LINE" | awk -F'|' '{print $3}' | grep -oE '[0-9]+\.[0-9]+' | head -1)
