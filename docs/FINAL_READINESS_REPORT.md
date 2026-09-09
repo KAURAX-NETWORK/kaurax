@@ -9,7 +9,7 @@ ones, and none has been rounded up.
 
 | # | Category | Score | Evidence |
 |---|---|---|---|
-| 1 | Protocol correctness | **72** | 338 Solidity tests, 47 acceptance checks, 404 differential cases. Settlement contracts 86–93% line coverage. Branch coverage 16–70% — revert paths largely unexercised |
+| 1 | Protocol correctness | **72** | 385 Solidity tests, 47 acceptance checks, 404 differential cases. Settlement contracts 86–93% line coverage. Branch coverage 16–70% — revert paths largely unexercised |
 | 2 | Execution | **45** | EVM-equivalent via `anvil`, but the state transition function is an external binary over JSON-RPC. Not instrumentable, not pinned, not differentially tested against a second implementation (I-1) |
 | 3 | Settlement | **70** | Output roots, proposer bonds, finalization interlock, forced-inclusion gate — tested and verified live. **Nothing verifies a root corresponds to execution** |
 | 4 | Data availability | **90** | Every block is L2 calldata; acceptance rebuilds a signed transaction from it alone. Inherits the L2's availability — the honest ceiling |

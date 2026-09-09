@@ -47,8 +47,8 @@ test asserts it.
 
 **Test totals at this commit, from the suites themselves:**
 
-- `forge test` → **338 passed, 0 failed, 18 suites**
-- `pnpm test` → **179 passed, 0 failed, 29 packages**
+- `forge test` → **385 passed, 0 failed, 23 suites**
+- `pnpm test` → **181 passed, 0 failed, 29 turbo tasks**
 
 ### What "verified" does not extend to
 
@@ -68,7 +68,7 @@ Ordered by how much of the system's safety rests on them.
    dishonest proposer commits an arbitrary root and, once final, withdraws against it.
 2. **The guardian is the final arbiter.** A 2-of-3 multisig decides disputes. Capture it and
    it rules for a liar, or against an honest challenger, within the window.
-3. **No external audit.** 338 contract tests are evidence of intent, not of correctness. No
+3. **No external audit.** 385 contract tests are evidence of intent, not of correctness. No
    independent party has read the settlement, bridge or dispute contracts.
 4. **Bridge escrow accounting can be inflated by a re-entrant token** — new in this audit,
    reproduced, see §3 H-4.
@@ -158,7 +158,7 @@ less dangerous direction but still disqualifying:
 | `README.md` "What does not" | "Fault proofs — not started; **no verifier and no stub**" | A 544-line `KauraxOneStepVerifier` exists with 404 differential cases. The README's own callout, 40 lines above, says so |
 | `MAINNET_READINESS.md` §D.1 and §G.1 | "No one-step verifier exists and no stub was written"; "no stub exists — not even one that compiles" | Same |
 | `MAINNET_READINESS.md` §J | "270 + 126 + 12 tests passing" | §F of the same document says 338 and 179 |
-| `README.md` "What works today" | "262 contract · 121 node" | 338 and 179 |
+| `README.md` "What works today" | a contract/node tally two rounds out of date | the figures the suites report |
 | `README.md` Repository | "39 documents" | 65 in `docs/*.md`, 74 including subdirectories |
 | `docs/DISPUTE_GAME.md` | "44 tests" | 41 + 11 = 52 |
 | `docs/TEST_STATUS.md` per-suite table | rows sum to 322 | total is 338; `TimelockSelfAdmin.t.sol` (16) has no row |

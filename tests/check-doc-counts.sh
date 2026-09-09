@@ -89,6 +89,55 @@ while IFS= read -r hit; do
 done < <(grep -rnE '(forge test|pnpm test)' --include='*.md' --exclude-dir=node_modules --exclude-dir=.git . 2>/dev/null)
 [ "$STALE" -eq 0 ] && ok "no document contradicts the suites"
 
+printf "\n${BOLD}The canonical per-suite table must reconcile${RESET}\n"
+# The grand total can be right while the table under it is wrong: TimelockSelfAdmin.t.sol was
+# missing for sixteen tests and the rows summed to 322 against a stated 338. A table that does
+# not add up is worse than no table, because it looks like evidence.
+FORGE_SUITES="$(printf '%s' "$FORGE_OUT" | grep -oE 'Ran [0-9]+ tests for test/[A-Za-z0-9_]+\.t\.sol' \
+  | sed -E 's|Ran ([0-9]+) tests for test/([A-Za-z0-9_]+)\.t\.sol|\2 \1|' | sort -u)"
+TABLE="$(awk '/^## Solidity/{f=1;next} /^## Node and services/{f=0} f' "$CANON" \
+  | grep -oE '^\| `[A-Za-z0-9_]+\.t\.sol` \| [0-9]+' \
+  | sed -E 's@^\| `([A-Za-z0-9_]+)\.t\.sol` \| ([0-9]+)@\1 \2@' | sort -u)"
+
+TABLE_BAD=0
+while read -r sname scount; do
+  [ -n "$sname" ] || continue
+  row="$(printf '%s\n' "$TABLE" | awk -v n="$sname" '$1==n {print $2}')"
+  if [ -z "$row" ]; then
+    bad "$CANON has no row for ${sname}.t.sol, which ran $scount tests"; TABLE_BAD=1
+  elif [ "$row" != "$scount" ]; then
+    bad "$CANON says ${sname}.t.sol has $row tests; forge ran $scount"; TABLE_BAD=1
+  fi
+done < <(printf '%s\n' "$FORGE_SUITES")
+
+SUM="$(printf '%s\n' "$TABLE" | awk '{s+=$2} END {print s+0}')"
+[ "$SUM" = "$SOL" ] || { bad "$CANON per-suite rows sum to $SUM, but the suite total is $SOL"; TABLE_BAD=1; }
+[ "$TABLE_BAD" -eq 0 ] && ok "every suite has a row, and the rows sum to $SOL"
+
+printf "\n${BOLD}Prose counts must agree as well as totals${RESET}\n"
+# The README said "262 contract · 121 node" for two rounds while this gate passed, because it
+# only ever looked at lines mentioning `forge test` or `pnpm test`.
+#
+# The pattern is deliberately narrow. "46 contract-level" is a per-suite figure, "34 Solidity
+# SPDX headers" is not a test count, and "6,072 Solidity" is a line count — none may be
+# flagged. So the number must not follow a digit or comma, and what comes after the language
+# word must be a tests word or a separator, never another noun.
+PROSE_RE='(^|[^0-9,])([0-9]{2,4}) (contract|node|Solidity)( tests?[^-A-Za-z]| ·| \||,|$)'
+PROSE_BAD=0
+while IFS= read -r hit; do
+  file="${hit%%:*}"; rest="${hit#*:}"; line="${rest%%:*}"; text="${rest#*:}"
+  printf '%s' "$file" | grep -qE "$SNAPSHOTS" && continue
+  while read -r pnum pword; do
+    [ -n "$pnum" ] || continue
+    case "$pword" in
+      contract|Solidity) [ "$pnum" = "$SOL" ]  || { bad "$file:$line says $pnum $pword tests, actual $SOL"; PROSE_BAD=1; } ;;
+      node)              [ "$pnum" = "$NODE" ] || { bad "$file:$line says $pnum node tests, actual $NODE"; PROSE_BAD=1; } ;;
+    esac
+  done < <(printf '%s' "$text" | grep -oE "$PROSE_RE" \
+             | sed -E 's/^[^0-9]*//; s/^([0-9]+) (contract|node|Solidity).*/\1 \2/')
+done < <(grep -rnE "$PROSE_RE" --include='*.md' --exclude-dir=node_modules --exclude-dir=.git . 2>/dev/null)
+[ "$PROSE_BAD" -eq 0 ] && ok "no prose count contradicts the suites"
+
 printf "\n"
 if [ "$fail" -ne 0 ]; then
   printf "${RED}${BOLD}Documented test counts do not match reality.${RESET}\n"

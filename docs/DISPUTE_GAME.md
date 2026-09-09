@@ -1,6 +1,6 @@
 # KAURAX — Permissionless Dispute Game
 
-**Status: IMPLEMENTED and TESTED.** 44 tests in `test/DisputeGame.t.sol` and
+**Status: IMPLEMENTED and TESTED.** 52 tests — 41 in `test/DisputeGame.t.sol` and 11 in
 `test/DisputeGameAdversarial.t.sol`.
 
 **This is not a fault proof.** It narrows a disagreement to one block and hands that block

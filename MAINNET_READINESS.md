@@ -57,7 +57,10 @@ the guardian rules correctly.* A fault proof would remove the second clause.
 
 ## D. Known limitations
 
-1. No fault proofs. No one-step verifier exists and no stub was written.
+1. No fault proof over KAURAX execution. A one-step verifier does exist — a real one, for
+   the documented KAURAX Verifiable Subset, with 404 differential cases against a reference
+   emulator — and it is deliberately **not** connected to settlement, because KAURAX blocks
+   execute on the full EVM and not on that subset. Nothing verifies a KAURAX output root.
 2. Bisection reaches a block, not an instruction — no trace commitments exist.
 3. Single sequencer; no rotation.
 4. Devnet operator keys are local, though the signing seam is implemented and tested.
@@ -91,8 +94,8 @@ Executed for this report, not quoted from memory.
 
 | Suite | Result |
 |---|---|
-| `forge test` | **338 passed**, 0 failed, 18 suites |
-| `pnpm test` | **179 passed**, 0 failed, 29 packages |
+| `forge test` | **385 passed**, 0 failed, 23 suites |
+| `pnpm test` | **181 passed**, 0 failed, 29 turbo tasks |
 | `tests/e2e-testnet.sh` | **12 passed**, 0 failed, against the live chain |
 | Dispute game | 41 tests |
 | Adversarial dispute | 11 tests, real attacker contracts |
@@ -141,10 +144,11 @@ Each was implemented, tested, and verified against something real.
 
 ### Why each remaining blocker remains
 
-**1. One-step verifier — NOT FIXABLE HERE.** Requires a proving VM, execution trace
-commitments and a preimage oracle: 18–30 engineer-months. A `step()` that returned `true`
-would let KAURAX claim a property it does not have, so no stub exists — not even one that
-compiles.
+**1. One-step verifier over KAURAX execution — NOT FIXABLE HERE.** Requires a proving VM,
+execution trace commitments and a preimage oracle over the full EVM: 18–30 engineer-months.
+The verifier that exists covers the KVS subset and is unwired by choice; a `step()` that
+returned `true` for real KAURAX blocks would let KAURAX claim a property it does not have,
+so no such stub exists — not even one that compiles.
 
 **2. External audit — NOT FIXABLE BY THE TEAM.** An internal review by the author of the
 code is the weakest kind. This needs an independent firm.
@@ -216,7 +220,7 @@ built so integration replaces one call and leaves bonds, timeouts and settlement
 - [x] Deployment scripts refuse to assign a role to an address with no code
 - [x] Faucet key is not a published one
 - [x] Backup and restore rehearsed on the server
-- [x] 270 + 126 + 12 tests passing
+- [x] 385 + 181 + 12 tests passing
 
 **Not done**
 - [ ] One-step verifier

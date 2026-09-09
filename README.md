@@ -39,11 +39,13 @@ anything.
 | **Dispute game** | Anyone can challenge a state commitment with a bond; bisection narrows to one block on chain |
 | **Governance** | Every privileged role held by a 2-of-3 multisig or a 1-hour timelock |
 | **Wallet and CLI** | Real signing, encrypted keys, faucet, explorer, indexed history |
-| **Tests** | 262 contract · 121 node · 12 live end-to-end |
+| **Tests** | 385 contract · 181 node · 12 live end-to-end |
 
 ## What does not
 
-- **Fault proofs** — not started; no verifier and no stub ([roadmap](docs/FAULT_PROOF_ROADMAP.md))
+- **Fault proofs over KAURAX execution** — a one-step verifier exists for the documented
+  KAURAX Verifiable Subset and is deliberately not wired to settlement; KAURAX blocks run
+  on the full EVM, so nothing verifies them ([the gap, precisely](docs/FAULT_PROOFS.md))
 - **Decentralized sequencing** — one sequencer; forced inclusion bounds the damage
 - **External audit** — none
 - **Bisection to an instruction** — reaches a block; no trace commitments exist
@@ -120,7 +122,7 @@ apps/                  Ten Next.js frontends, served as zones under one domain
 packages/              SDK, CLI, shared types and UI
 infra/                 Docker, nginx, deployment and ops scripts
 tests/                 Acceptance, end-to-end, chaos, load
-docs/                  39 documents, rendered at kaurax.network/docs
+docs/                  65 documents, rendered at kaurax.network/docs
 ```
 
 ---
