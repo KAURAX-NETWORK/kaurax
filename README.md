@@ -55,7 +55,7 @@ about fifteen minutes: [docs/REPRODUCIBLE_TESTNET_DEMO.md](docs/REPRODUCIBLE_TES
 
 ### ❌ MISSING
 
-- **Fault proofs over KAURAX execution** — the engine is `anvil` over JSON-RPC and cannot emit a trace, and output roots do not commit to one. 16–30 engineer-months ([the gap, measured against the code](docs/FAULT_PROOF_GAP_ANALYSIS.md))
+- **Fault proofs over KAURAX execution** — the engine is `anvil` over JSON-RPC and cannot emit a trace, and output roots do not commit to one. 18–30 engineer-months ([the gap, measured against the code](docs/FAULT_PROOF_GAP_ANALYSIS.md))
 - **Decentralized sequencing** — one sequencer; forced inclusion bounds the damage. Deliberately deferred until fault proofs exist
 - **Alerting** — rules exist and evaluate; no Alertmanager, so nothing pages anyone
 - **TLS on the public RPC** — the host blocks 80/443 on trial accounts

@@ -195,7 +195,7 @@ the code in [FAULT_PROOF_GAP_ANALYSIS.md](FAULT_PROOF_GAP_ANALYSIS.md).
 | M5 | **One-step verifier over the full EVM** | 6–12 |
 | M6 | Trace bisection; challenger agent; advisory operation | 1–2 |
 | M7 | Audit remediation (engineering side) | 2–4 |
-| | **Total engineering** | **16–30 engineer-months** |
+| | **Total engineering** | **18–30 engineer-months** |
 
 M5 is over a third of the work and carries most of the risk. A proposal sizing it below six
 engineer-months would not be credible.

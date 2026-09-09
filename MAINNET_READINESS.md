@@ -326,7 +326,7 @@ but that is the uncontested path. Replace `resolve` with `proveStep`.
 
 **REMAINING WORK:** [FAULT_PROOF_GAP_ANALYSIS.md](docs/FAULT_PROOF_GAP_ANALYSIS.md). The
 blocker is that KAURAX's state transition function is `anvil` over JSON-RPC and cannot emit a
-trace. 16–30 engineer-months. **The score stays at 0 until a dispute is decided on chain with
+trace. 18–30 engineer-months. **The score stays at 0 until a dispute is decided on chain with
 no guardian transaction** — work on the KVS does not move it, and this round's M0 explicitly
 did not.
 

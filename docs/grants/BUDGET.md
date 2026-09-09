@@ -26,6 +26,10 @@ Effort figures trace to [../FAULT_PROOF_ROADMAP.md §6](../FAULT_PROOF_ROADMAP.m
 | M7 | Audit remediation *(engineering side)* | 2–4 | Medium |
 | | **Total engineering** | **16–30** | |
 
+The rows above sum to 16–30. The figure quoted elsewhere in this repository is the
+roadmap's **18–30**, which is the more conservative of the two decompositions; a proposal
+should use that. The difference is in how M2 and M5 are split, not in the scope.
+
 M5 is over a third of the work and carries most of the risk. A proposal that sized it below
 6 engineer-months would not be credible.
 

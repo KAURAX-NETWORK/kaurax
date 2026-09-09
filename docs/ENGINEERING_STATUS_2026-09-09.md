@@ -188,7 +188,7 @@ Failures encountered and fixed during the round, listed because they were real:
 
 | ID | Issue | Status |
 |---|---|---|
-| **H-1** | No fault proof over KAURAX execution | **OPEN** — structural, 16–30 engineer-months |
+| **H-1** | No fault proof over KAURAX execution | **OPEN** — structural, 18–30 engineer-months |
 | **H-2** | Guardian is the final arbiter of a contested dispute | **OPEN** — follows from H-1 |
 | **H-3** | No external audit | **OPEN** — not fixable by the team |
 | M-3 | Operator keys local on the devnet | OPEN — signing service built, not in use |

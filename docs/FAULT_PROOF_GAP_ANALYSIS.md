@@ -283,8 +283,8 @@ engineer-months and assume one experienced protocol engineer.
 | M7 | Swap `resolve` for `proveStep` in the settlement game; retire the guardian as arbiter | 0.5–1 | **Closes H-1 and H-2** |
 | M8 | External audit of the whole proof system | — | Closes H-3 |
 
-**Total: 18–32 engineer-months before the audit**, consistent with the 18–30 stated elsewhere
-in the documentation. The dominant terms are M2 and M5, and neither can be shortened by
+**Total: 18–30 engineer-months before the audit**, matching the figure used throughout the
+documentation. The dominant terms are M2 and M5, and neither can be shortened by
 working harder on the parts that are already done.
 
 ### M0, completed in this phase
