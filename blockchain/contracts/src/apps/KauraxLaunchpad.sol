@@ -162,6 +162,9 @@ contract KauraxLaunchpad {
     /// @notice Escrow the sale allocation. Required before contributions are accepted.
     /// @dev The amount credited is the measured balance delta, so a fee-on-transfer token
     ///      cannot under-deliver while claiming the full allocation.
+    // Same shape, same answer: the function is already `nonReentrant`, which the detector
+    // does not model. Suppressed as a false positive, not to quiet the gate.
+    // slither-disable-next-line reentrancy-balance
     function depositTokens(uint256 saleId) external nonReentrant onlyCreator(saleId) {
         Sale storage sale = _sales[saleId];
         if (sale.tokensDeposited) revert AlreadyDeposited();

@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import {IERC20} from "../interfaces/IERC20.sol";
 import {IKauraxPortal} from "../interfaces/IKauraxPortal.sol";
+import {ReentrancyGuard} from "../libraries/ReentrancyGuard.sol";
 
 interface IKauraxL3ERC20Bridge {
     function finalizeDeposit(address _l2Token, address _l3Token, address _from, address _to, uint256 _amount)
@@ -17,7 +18,7 @@ interface IPortalSender {
 /// @notice Escrows ERC-20s on the underlying L2 while a representation circulates on
 ///         KAURAX. Deposits travel over the portal's deposit path; withdrawals arrive as
 ///         finalized withdrawal calls from the portal.
-contract KauraxL2ERC20Bridge {
+contract KauraxL2ERC20Bridge is ReentrancyGuard {
     IKauraxPortal public immutable PORTAL;
 
     /// @notice The counterpart bridge on KAURAX.
@@ -48,18 +49,29 @@ contract KauraxL2ERC20Bridge {
 
     /// @notice Escrow `_amount` of `_l2Token` and instruct KAURAX to mint the counterpart.
     /// @param _minGasLimit Gas for the L3-side finalizeDeposit call.
+    // The detector reports the balance-delta measurement spanning `transferFrom`. That was
+    // a real finding — see test/BridgeReentrancy.t.sol — and it is closed by `nonReentrant`.
+    // slither does not model reentrancy guards, so it still reports the shape. The directive
+    // must be the last line before the declaration: it applies to the next line, literally.
+    // slither-disable-next-line reentrancy-balance
     function bridgeERC20To(
         address _l2Token,
         address _l3Token,
         address _to,
         uint256 _amount,
         uint64 _minGasLimit
-    ) external {
+    ) external nonReentrant {
         if (_to == address(0)) revert ZeroAddress();
         if (_amount == 0) revert ZeroAmount();
 
         // Pull first, measure actual delta: fee-on-transfer tokens would otherwise let a
         // depositor mint more on L3 than was escrowed here.
+        //
+        // The measurement spans `transferFrom`, an external call into a token address the
+        // caller chooses and which is not allow-listed. A token that calls back — ERC-777's
+        // `tokensToSend` is the standard case — could re-enter, land its own tokens before
+        // this frame read its `after` balance, and have them counted twice. `nonReentrant`
+        // is what makes the delta trustworthy; the delta itself is correct and must stay.
         uint256 before = IERC20(_l2Token).balanceOf(address(this));
         bool ok = IERC20(_l2Token).transferFrom(msg.sender, address(this), _amount);
         if (!ok) revert TransferFailed();
@@ -85,7 +97,7 @@ contract KauraxL2ERC20Bridge {
         address _from,
         address _to,
         uint256 _amount
-    ) external {
+    ) external nonReentrant {
         if (msg.sender != address(PORTAL)) revert NotPortal();
         if (IPortalSender(address(PORTAL)).l3Sender() != OTHER_BRIDGE) revert NotCounterpartBridge();
 
