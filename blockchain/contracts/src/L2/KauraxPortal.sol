@@ -360,7 +360,7 @@ contract KauraxPortal is IKauraxPortal, IForcedInclusion {
     ///      external call. Re-entry is refused on the first line of the function, and the
     ///      withdrawal is marked finalized before the call, so the only post-call write is
     ///      clearing the sentinel. Suppressed for that reason, not to quiet the gate.
-    // slither-disable-next-line reentrancy-eth
+    // slither-disable-next-line reentrancy-eth,arbitrary-send-eth
     function finalizeWithdrawalTransaction(Types.WithdrawalTransaction memory _tx) external whenNotPaused {
         if (l3Sender != NOT_ENTERED) revert ReentrantFinalize();
         if (_tx.target == address(this)) revert TargetIsPortal();

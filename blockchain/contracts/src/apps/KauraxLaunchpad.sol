@@ -357,6 +357,8 @@ contract KauraxLaunchpad {
         if (!ok || (data.length != 0 && !abi.decode(data, (bool)))) revert TransferFailed();
     }
 
+    // slither-disable-next-line arbitrary-send-eth
+
     function _sendKAX(address to, uint256 amount) internal {
         // slither-disable-next-line arbitrary-send-eth
         // `to` is a contributor claiming their own refund or the sale owner claiming

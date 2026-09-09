@@ -334,6 +334,7 @@ contract KauraxNames {
 
     /// @dev Pay the treasury, refund the remainder. Effects are already written by the
     ///      time this runs, so a reentrant call finds the name registered.
+    // slither-disable-next-line arbitrary-send-eth
     function _settle(uint256 price, uint256 provided) internal {
         if (price > 0) {
             // slither-disable-next-line arbitrary-send-eth
