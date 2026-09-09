@@ -1,5 +1,10 @@
 # KAURAX — Completion Report
 
+> **SNAPSHOT.** A report of the round named above, kept unaltered so its conclusions can be
+> traced to the numbers they were drawn from. For current status see
+> [TEST_STATUS.md](TEST_STATUS.md), [SECURITY_STATUS.md](SECURITY_STATUS.md) and
+> [../MAINNET_READINESS.md](../MAINNET_READINESS.md).
+
 **Date:** 2026-09-09 · **Scope:** Phases 0–20 · **Committed:** nothing · **Deployed:**
 monitoring, an nginx configuration fix, and a compose correction on the live testnet
 
@@ -182,8 +187,8 @@ Settlement disputes remain guardian-resolved.
 
 | Suite | Result |
 |---|---|
-| `forge test` | **385 passed**, 0 failed, 23 suites |
-| `pnpm test` | **181 passed**, 29 turbo tasks |
+| `forge test` | **338 passed**, 0 failed, 18 suites |
+| `pnpm test` | **179 passed**, 29 packages |
 | Fault-proof properties | **10 passed** |
 | Security + adversarial | **44 passed** |
 | Acceptance, end to end | **47 checks passed** |

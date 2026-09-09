@@ -56,6 +56,19 @@ number.
 | `@kaurax/signer` | 11 | Keystore: signature recovery, refusals, determinism |
 | `@kaurax/tests` | 10 | KVS execution invariants as properties |
 
+## Against a running devnet
+
+These need a live chain, so they are not part of `pnpm test`. `./tests/reproduce.sh` runs all
+of them in order from a clean clone, and CI runs the same set on a fresh runner.
+
+| Suite | Checks | Covers |
+|---|---|---|
+| `tests/acceptance.sh` | 47 | Execution, batching, **data availability by reconstruction**, withdrawal proof, replay protection |
+| `tests/apps-smoke.sh` | 45 | AMM quoting and liquidity, names, launchpad — seeds a fresh chain rather than assuming prior state |
+| `tests/dispute.sh` | 23 | **Dispute initiation, bisection, the finalization interlock, output deletion, bond settlement** — against deployed contracts, with no guardian involved |
+| `tests/forced-inclusion.sh` | — | Overdue forced transaction halts settlement |
+| `tests/chaos.sh` | 10 | SIGSTOP/SIGKILL fault injection |
+
 ## End-to-end — `tests/e2e-testnet.sh`
 
 **12 passed · 0 failed**, against the live testnet with real signatures.

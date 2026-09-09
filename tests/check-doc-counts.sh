@@ -72,7 +72,7 @@ printf "\n${BOLD}No document may state a different total${RESET}\n"
 #
 # Historical snapshots are excluded by name: they record what was true on a date and are
 # supposed to differ from today.
-SNAPSHOTS="KAURAX_DEPLOYMENT_STATUS.md|KAURAX_INFRA_AUDIT.md|SECURITY_REVIEW.md|PUBLIC_RELEASE_AUDIT.md|FINAL_TESTNET_REPORT.md|FAULT_PROOF_AUDIT.md"
+SNAPSHOTS="KAURAX_DEPLOYMENT_STATUS.md|KAURAX_INFRA_AUDIT.md|SECURITY_REVIEW.md|PUBLIC_RELEASE_AUDIT.md|FINAL_TESTNET_REPORT.md|FAULT_PROOF_AUDIT.md|PUBLIC_RELEASE_CHECKLIST.md|KAURAX_COMPLETION_REPORT.md|FINAL_READINESS_REPORT.md"
 STALE=0
 while IFS= read -r hit; do
   file="${hit%%:*}"; rest="${hit#*:}"; line="${rest%%:*}"; text="${rest#*:}"
@@ -137,6 +137,25 @@ while IFS= read -r hit; do
              | sed -E 's/^[^0-9]*//; s/^([0-9]+) (contract|node|Solidity).*/\1 \2/')
 done < <(grep -rnE "$PROSE_RE" --include='*.md' --exclude-dir=node_modules --exclude-dir=.git . 2>/dev/null)
 [ "$PROSE_BAD" -eq 0 ] && ok "no prose count contradicts the suites"
+
+printf "\n${BOLD}The readiness score is stated in one place${RESET}\n"
+# The score had drifted into thirteen documents with nothing checking them against each
+# other, which is how the test counts got out of hand. MAINNET_READINESS.md is canonical.
+SCORE="$(grep -oE '^## Score: [0-9]{1,3}/100' MAINNET_READINESS.md | grep -oE '[0-9]{1,3}/100' | head -1)"
+if [ -z "$SCORE" ]; then
+  bad "MAINNET_READINESS.md has no '## Score: N/100' heading to be canonical"
+else
+  ok "MAINNET_READINESS.md scores" "$SCORE"
+  SCORE_BAD=0
+  while IFS= read -r hit; do
+    file="${hit%%:*}"; rest="${hit#*:}"; line="${rest%%:*}"; text="${rest#*:}"
+    printf '%s' "$file" | grep -qE "$SNAPSHOTS" && continue
+    found="$(printf '%s' "$text" | grep -oE '[0-9]{1,3}/100' | head -1)"
+    [ -n "$found" ] || continue
+    [ "$found" = "$SCORE" ] || { bad "$file:$line says $found, the scorecard says $SCORE"; SCORE_BAD=1; }
+  done < <(grep -rnE '[0-9]{1,3}/100' --include='*.md' --exclude-dir=node_modules --exclude-dir=.git . 2>/dev/null)
+  [ "$SCORE_BAD" -eq 0 ] && ok "no document contradicts the scorecard"
+fi
 
 printf "\n"
 if [ "$fail" -ne 0 ]; then

@@ -56,7 +56,7 @@ Layer-1 and has no security of its own.
 | [FAULT_PROOF_SPEC.md](./FAULT_PROOF_SPEC.md) | The technical specification of a verifier over KAURAX execution |
 | [FAULT_PROOF_AUDIT.md](./FAULT_PROOF_AUDIT.md) | The pre-implementation audit, verified against source |
 | [FAULT_PROOF_IMPLEMENTATION_REPORT.md](./FAULT_PROOF_IMPLEMENTATION_REPORT.md) | What was built, what it proves, and what it does not |
-| [../MAINNET_READINESS.md](../MAINNET_READINESS.md) | The full gate list — 52/100 |
+| [../MAINNET_READINESS.md](../MAINNET_READINESS.md) | The full gate list — 51/100 |
 
 ## Verify it yourself
 

@@ -1,6 +1,6 @@
 # KAURAX — Mainnet Readiness
 
-**Date:** 2026-09-08 · **Score: 52/100** · **Verdict: not ready, and one reason dominates.**
+**Date:** 2026-09-09 · **Score: 51/100** · **Verdict: not ready, and one reason dominates.**
 
 There is no fault proof system over KAURAX execution (a one-step verifier exists for a
 documented EVM subset and is not connected to settlement — see docs/FAULT_PROOFS.md). Everything else on this page is secondary to that, and no
@@ -246,25 +246,141 @@ whole sequence on a fork.**
 
 ---
 
-## Score: 52/100
+## Score: 51/100
 
-| | Weight | Score | |
+Every row states what would have to be true for the score to move, and names the command that
+produced its evidence. Nothing here is quoted from an earlier report.
+
+| Category | Weight | Score | STATUS |
 |---|---|---|---|
-| Execution and DA | 15 | 15 | Verified by reconstruction |
-| Settlement mechanics | 10 | 9 | Works; roots unverified |
-| Censorship resistance | 10 | 9 | Forced inclusion verified live |
-| Bridge and withdrawals | 10 | 8 | Tested; rests on unverified roots |
-| Dispute game | 10 | 9 | Real; guardian-resolved but multisig-held |
-| **Fault proofs** | **25** | **0** | Not started |
-| Governance | 5 | 5 | Holds every role; deployment now guarded |
-| Key management | 5 | 2 | Built and tested, not used in production |
-| Operations | 5 | 5 | Recovery rehearsed; alerting still absent |
-| **Audit** | **5** | **0** | Not started |
-| **Total** | **100** | **52** | |
+| Execution and DA | 15 | 15 | **PASS** |
+| Settlement mechanics | 10 | 9 | **PARTIAL** |
+| Censorship resistance | 10 | 9 | **PARTIAL** |
+| Bridge and withdrawals | 10 | 8 | **PARTIAL** |
+| Dispute game | 10 | 9 | **PARTIAL** |
+| **Fault proofs** | **25** | **0** | **FAIL** |
+| Governance | 5 | 5 | **PASS** |
+| Key management | 5 | 2 | **PARTIAL** |
+| Operations | 5 | 4 | **PARTIAL** |
+| **Audit** | **5** | **0** | **FAIL** |
+| **Total** | **100** | **51** | |
 
-Fault proofs and the audit are 30 of the 100 and both remain zero. The five points gained
-came from removing ways to make an operational mistake, not from adding security to the
-protocol — and no amount of that kind of work moves the number past 70.
+### Execution and DA — PASS · 15/15
+
+**EVIDENCE:** `tests/acceptance.sh` steps 5–8. Step 8 takes only what is on the L2, decodes
+the batch calldata, recomputes `keccak256` of each raw transaction and finds the one it sent.
+The KAURAX node is not consulted. Runs on every push.
+
+**REMAINING WORK:** none for this category. Blob-based DA would reduce cost, not increase
+assurance.
+
+### Settlement mechanics — PARTIAL · 9/10
+
+**EVIDENCE:** `tests/acceptance.sh` step 9; `KauraxL2OutputOracle.t.sol` (13);
+`tests/dispute.sh` step 4 shows the finalization interlock holding on a live chain — the
+output stays unfinalized past the window because a game is open.
+
+**REMAINING WORK:** output roots commit to `(version, stateRoot, withdrawalTreeRoot,
+latestBlockHash)` and nothing about the execution that produced them. Add a trace root and
+upgrade proposer, oracle and portal together. The point cannot be recovered before that.
+
+### Censorship resistance — PARTIAL · 9/10
+
+**EVIDENCE:** `tests/forced-inclusion.sh` against a live chain; `ForcedInclusion.t.sol` (21).
+An ignored forced transaction makes the oracle reject every proposal.
+
+**REMAINING WORK:** the acknowledgement is the sequencer's assertion, detectable off chain but
+not proven on it. Proving it requires the same execution trace as the fault proof.
+
+### Bridge and withdrawals — PARTIAL · 8/10
+
+**EVIDENCE:** `tests/acceptance.sh` steps 10–11; `KauraxPortal.t.sol` (25), `Bridge.t.sol`
+(6), `BridgeReentrancy.t.sol` (5), `MerkleTree.t.sol` (8), `L3ToL2MessagePasser.t.sol` (11),
+`KauraxBridgedERC20.t.sol` (12). Both bridges and the message passer are at 100% line coverage
+and inside the CI floor.
+
+**REMAINING WORK:** withdrawals rest on unverified output roots, so this cannot exceed 8 until
+fault proofs exist. Finding **H-4** — the escrow could be credited more than it received via a
+token that re-enters `transferFrom` — was found and fixed in this round; the score does not
+rise, because it was never accounting for a bug nobody knew about.
+
+### Dispute game — PARTIAL · 9/10
+
+**EVIDENCE:** `DisputeGame.t.sol` (41), `DisputeGameAdversarial.t.sol` (11) with real attacker
+contracts, and now `tests/dispute.sh` — 23 checks against **deployed contracts on a live
+chain**: a challenger holding no role opens a game, the range narrows 11 → 5 blocks,
+finalization is blocked while the game is live, the root is deleted, and the contract holds
+nothing afterwards. The devnet deploys the game and transfers the challenger role, so this is
+reproducible by anyone.
+
+**REMAINING WORK:** a *contested* claim is still decided by the guardian. The live run
+resolves on the clock because the proposer abandons its claim, which needs no trusted party —
+but that is the uncontested path. Replace `resolve` with `proveStep`.
+
+### Fault proofs — FAIL · 0/25
+
+**EVIDENCE:** `KauraxDisputeGame.isFaultProof()` returns `false`, asserted by
+`DisputeGame.t.sol:508`. A real one-step verifier exists for the KAURAX Verifiable Subset
+(`KVSVerifier.t.sol`, 404 differential cases, now checked against the *current* emulator by
+`tests/check-kvs-fixtures.sh`) and is referenced by tests only.
+
+**REMAINING WORK:** [FAULT_PROOF_GAP_ANALYSIS.md](docs/FAULT_PROOF_GAP_ANALYSIS.md). The
+blocker is that KAURAX's state transition function is `anvil` over JSON-RPC and cannot emit a
+trace. 16–30 engineer-months. **The score stays at 0 until a dispute is decided on chain with
+no guardian transaction** — work on the KVS does not move it, and this round's M0 explicitly
+did not.
+
+### Governance — PASS · 5/5
+
+**EVIDENCE:** `Governance.t.sol` (27), `TimelockSelfAdmin.t.sol` (16), `DeployGuard.t.sol` (8).
+A 2-of-3 multisig and a 1-hour timelock hold every privileged role; roles cannot be assigned
+to an address with no code; shortening the timelock delay still costs the current delay.
+
+**REMAINING WORK:** none for a testnet. A mainnet would want a longer delay and a published
+signer set.
+
+### Key management — PARTIAL · 2/5
+
+**EVIDENCE:** signing service built and tested over a real socket (19 tests); the node can run
+without ever holding a key. `KAURAX_SIGNER_MODE=local` on the devnet.
+
+**REMAINING WORK:** move the sequencer, batcher and proposer keys onto the signing service in
+the live deployment. This is an operational change on a running chain and deserves its own
+window.
+
+### Operations — PARTIAL · 4/5
+
+**EVIDENCE:** health endpoints with bounded probes (`health-deadlines.test.ts`); Prometheus on
+7300; backup verified by restoring and comparing rows; `tests/chaos.sh` fault injection;
+`tests/reproduce.sh` runs the whole thing from a clean clone.
+
+**REMAINING WORK:** **alerting reaches nobody.** `infra/monitoring/alerts.yml` is loaded via
+`rule_files`, but `prometheus.yml` has no `alerting:` block and no Alertmanager is deployed, so
+rules evaluate into a UI nobody is watching at 3am. This row was 5/5 while carrying the note
+"alerting still absent", which is not a defensible pair; corrected to 4.
+
+### Audit — FAIL · 0/5
+
+**EVIDENCE:** none. No external firm has read this code.
+
+**REMAINING WORK:** commission one. Not fixable by the team, and an internal review by the
+author of the code is the weakest kind there is.
+
+---
+
+### Why the total moved from 52 to 51
+
+Not because anything regressed. Operations was scored 5/5 while its own note said alerting was
+absent; the two could not both be true, and the note was the accurate half.
+
+This round fixed a HIGH severity bug in the bridge, raised four security-critical contracts
+from below the coverage floor to 100%, put the dispute game on the devnet and demonstrated it
+live, and closed a hole in the differential rig that let the verifier drift from its reference.
+**None of that moves the score**, because none of it changes what the system assumes. That is
+the intended behaviour of this scorecard: it measures trust removed, not work done.
+
+Fault proofs and the audit are 30 of the 100 and both remain zero. No amount of work outside
+those two moves the number past about 70.
 
 The honest position is unchanged: a well-built rollup with a real dispute game and no fault
 proof system.

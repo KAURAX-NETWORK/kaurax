@@ -198,6 +198,60 @@ node "$ROOT/infra/scripts/lib/write-env.mjs" \
 
 set -a; . "$ROOT/.env"; set +a
 
+# ------------------------------------------------------- dispute machinery --
+# The dispute game is one of KAURAX's headline properties and it was not deployed on the
+# devnet at all, so nobody cloning the repository could reproduce a single claim about it —
+# not the bonds, not the bisection, not the finalization interlock. It is here now, with the
+# challenger role actually transferred, because a game the oracle does not know about is
+# decoration: finalization stays a bare timer and a single key can still delete output roots.
+step "Governance and the dispute game on the L2"
+
+# Owners come from the L2 node's own unlocked accounts rather than from hardcoded keys.
+# Indices 5-7 sit outside the sequencer, batcher, proposer and faucet roles.
+GOV_OWNERS_CSV="$(cast rpc --rpc-url "$L2_RPC_URL" eth_accounts 2>/dev/null \
+  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s);console.log(a.slice(5,8).join(","))})')"
+[ -n "$GOV_OWNERS_CSV" ] || die "could not read accounts from the L2 to own the guardian multisig"
+
+GOV_LOG="$RUN_DIR/deploy-governance.log"
+( cd "$ROOT/blockchain/contracts" && \
+  GOV_OWNERS="$GOV_OWNERS_CSV" GOV_THRESHOLD=2 \
+  GOV_MINIMUM_DELAY=60 GOV_INITIAL_DELAY=60 \
+  forge script script/DeployGovernance.s.sol:DeployGovernance \
+    --rpc-url "$L2_RPC_URL" --broadcast ) > "$GOV_LOG" 2>&1 \
+  || { cat "$GOV_LOG"; die "governance deployment failed"; }
+
+MULTISIG="$(grep -oE 'KAURAX_MULTISIG_ADDRESS=0x[0-9a-fA-F]{40}' "$GOV_LOG" | tail -1 | cut -d= -f2 || true)"
+[ -n "$MULTISIG" ] || { cat "$GOV_LOG"; die "governance deployment printed no multisig address"; }
+
+# The guardian must be a contract — DeployDisputeGame refuses an EOA, because putting the
+# decision behind a single key recreates the problem the game exists to replace.
+#
+# The response timeout must be shorter than the oracle's finalization period (120s here) or
+# one lapsed move outlasts the window the dispute is protecting. The script enforces that
+# too; 30s is chosen so a demonstration finishes in under a minute.
+DISPUTE_LOG="$RUN_DIR/deploy-dispute.log"
+( cd "$ROOT/blockchain/contracts" && \
+  KAURAX_GUARDIAN="$MULTISIG" \
+  DISPUTE_RESPONSE_TIMEOUT=30 DISPUTE_MAX_DURATION=3600 \
+  DISPUTE_CHALLENGER_BOND=100000000000000000 \
+  DISPUTE_PROPOSER_BOND=1000000000000000000 \
+  DISPUTE_TRANSFER_CHALLENGER=true \
+  forge script script/DeployDisputeGame.s.sol:DeployDisputeGame \
+    --rpc-url "$L2_RPC_URL" --broadcast ) > "$DISPUTE_LOG" 2>&1 \
+  || { cat "$DISPUTE_LOG"; die "dispute game deployment failed"; }
+
+DISPUTE_GAME="$(grep -oE 'KAURAX_DISPUTE_GAME_ADDRESS=0x[0-9a-fA-F]{40}' "$DISPUTE_LOG" | tail -1 | cut -d= -f2 || true)"
+[ -n "$DISPUTE_GAME" ] || { cat "$DISPUTE_LOG"; die "dispute deployment printed no game address"; }
+
+info "KauraxMultisig        $MULTISIG  (2-of-3, dispute guardian)"
+info "KauraxDisputeGame     $DISPUTE_GAME  (challenger role transferred)"
+
+node "$ROOT/infra/scripts/lib/write-env.mjs" \
+  KAURAX_MULTISIG_ADDRESS="$MULTISIG" \
+  KAURAX_DISPUTE_GAME_ADDRESS="$DISPUTE_GAME"
+
+set -a; . "$ROOT/.env"; set +a
+
 # ------------------------------------------------------------------ layer 3 --
 step "Layer 3 — KAURAX execution engine (chain id ${KAURAX_CHAIN_ID})"
 # --no-mining is essential: the engine must never decide block contents on its own.

@@ -124,7 +124,7 @@ runs the verifier advisory beside the guardian instead of cutting over, and why 
 
 ### What is the readiness score and what does it mean?
 
-**52/100** for mainnet ([MAINNET_READINESS.md](../../MAINNET_READINESS.md)), self-assessed
+**51/100** for mainnet ([MAINNET_READINESS.md](../../MAINNET_READINESS.md)), self-assessed
 with per-row evidence. The recent gain came from removing operational mistakes — deployment
 guards, key rotation, recovery rehearsal — not from adding protocol security. The score cannot
 move much further without fault proofs, which is the point of this request.

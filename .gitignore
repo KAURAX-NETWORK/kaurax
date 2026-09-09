@@ -59,3 +59,5 @@ apps/docs/lib/docs-content.ts
 # Foundry build output from the standalone example project
 examples/basic-contract/out/
 examples/basic-contract/cache/
+
+.reproduce/

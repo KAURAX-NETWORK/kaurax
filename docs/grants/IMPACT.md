@@ -63,7 +63,7 @@ There is a second, softer contribution, and it is deliberate.
 
 KAURAX's README says, above its feature list, that it has no fault proof system. Its
 `resolutionMechanism()` returns the string "guardian multisig; no on-chain one-step verifier
-exists". Its own mainnet readiness assessment is **52/100**, published with per-row evidence.
+exists". Its own mainnet readiness assessment is **51/100**, published with per-row evidence.
 Its `isFaultProof()` returns `false` — on chain, permanently, where a would-be integrator can
 read it.
 

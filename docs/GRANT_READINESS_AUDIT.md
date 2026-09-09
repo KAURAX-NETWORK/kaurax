@@ -154,7 +154,7 @@ Conflating these is the most common way a project overstates itself, so they are
 |---|---|---|
 | **PUBLIC TESTNET** | ✅ **Ready — and live** | Chain producing blocks; 10 apps under one domain; 529 tests; 12 live end-to-end checks; RPC public |
 | **GRANT READY** | ✅ **Ready** | Trust model, open findings, reproducible builds, milestones with external acceptance tests, budget in engineer-months, no fabricated metrics. 11/12 checklist items; the twelfth **is** the request |
-| **MAINNET READY** | ❌ **Not ready — 52/100** | No fault proofs, no verifier, no proving VM, no external audit, one sequencer, guardian-decided disputes |
+| **MAINNET READY** | ❌ **Not ready — 51/100** | No fault proofs, no verifier, no proving VM, no external audit, one sequencer, guardian-decided disputes |
 
 **Grant ready and mainnet ready are different claims.** KAURAX is asking for funding *because*
 it is not mainnet ready, and a reviewer should read row 2 as "the documentation is honest

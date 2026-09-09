@@ -23,32 +23,54 @@ anything.
 > A fault proof would remove the second clause. Building one is
 > [18–30 engineer-months](docs/FAULT_PROOF_ROADMAP.md).
 >
-> Self-assessed mainnet readiness: **52/100** ([scorecard](MAINNET_READINESS.md)).
+> Self-assessed mainnet readiness: **51/100** ([scorecard](MAINNET_READINESS.md)).
 
 ---
 
-## What works today
+## Status, by category
+
+Nothing is listed as working unless a named command demonstrates it. Reproduce all of it in
+about fifteen minutes: [docs/REPRODUCIBLE_TESTNET_DEMO.md](docs/REPRODUCIBLE_TESTNET_DEMO.md).
+
+### ✅ WORKING — demonstrated, not asserted
+
+| | | Shown by |
+|---|---|---|
+| **EVM execution** | Solidity, Foundry, Hardhat, MetaMask, viem and ethers work unchanged | `tests/acceptance.sh` |
+| **Data availability** | Every block published as L2 calldata — and a signed transaction is rebuilt from it alone, hash matched | `tests/acceptance.sh` step 8 |
+| **L2 settlement** | Real contracts; batches, output roots and bonds on chain | `tests/acceptance.sh` steps 7, 9 |
+| **Proof-based withdrawals** | A Merkle proof against a published root. No operator approval step | `tests/acceptance.sh` step 10 |
+| **Forced inclusion** | Miss the deadline and the oracle rejects every proposal — censoring one user halts settlement for everyone | `tests/forced-inclusion.sh` |
+| **Dispute game** | A stranger challenges a root, bisection narrows it, finalization is blocked, the root is deleted — no guardian involved | `tests/dispute.sh`, 23 checks |
+| **Governance** | Every privileged role held by a 2-of-3 multisig or a 1-hour timelock | `Governance.t.sol`, `TimelockSelfAdmin.t.sol` |
+| **Wallet and CLI** | Real signing, encrypted keys, faucet, explorer, indexed history | `tests/e2e-testnet.sh` |
+| **Tests** | 385 contract · 181 node · 12 live end-to-end | `forge test`, `pnpm test` |
+
+### 🧪 EXPERIMENTAL — real code, deliberately not load-bearing
 
 | | |
 |---|---|
-| **EVM execution** | Solidity, Foundry, Hardhat, MetaMask, viem and ethers work unchanged |
-| **L2 settlement** | Real contracts; batches, output roots and bonds on chain |
-| **Data availability** | Every block published as L2 calldata — and `tests/acceptance.ts` rebuilds a signed transaction from it alone |
-| **Forced inclusion** | Submit on the L2 and start a clock. Miss it and the oracle rejects every proposal — censoring one user halts settlement for everyone. Verified on a live chain |
-| **Proof-based withdrawals** | A Merkle proof against a published root. No operator approval step |
-| **Dispute game** | Anyone can challenge a state commitment with a bond; bisection narrows to one block on chain |
-| **Governance** | Every privileged role held by a 2-of-3 multisig or a 1-hour timelock |
-| **Wallet and CLI** | Real signing, encrypted keys, faucet, explorer, indexed history |
-| **Tests** | 385 contract · 181 node · 12 live end-to-end |
+| **One-step verifier** | 544 lines of on-chain opcode execution for the documented KAURAX Verifiable Subset, agreeing with a reference emulator on 404 differential cases. **Not connected to settlement**, because KAURAX blocks run on the full EVM and not on that subset |
+| **Multi-level fault dispute game** | Bisects block → transaction → instruction and ends in that verifier. Referenced by tests only; settlement still uses the guardian-resolved game |
 
-## What does not
+### ❌ MISSING
 
-- **Fault proofs over KAURAX execution** — a one-step verifier exists for the documented
-  KAURAX Verifiable Subset and is deliberately not wired to settlement; KAURAX blocks run
-  on the full EVM, so nothing verifies them ([the gap, precisely](docs/FAULT_PROOFS.md))
-- **Decentralized sequencing** — one sequencer; forced inclusion bounds the damage
-- **External audit** — none
-- **Bisection to an instruction** — reaches a block; no trace commitments exist
+- **Fault proofs over KAURAX execution** — the engine is `anvil` over JSON-RPC and cannot emit a trace, and output roots do not commit to one. 16–30 engineer-months ([the gap, measured against the code](docs/FAULT_PROOF_GAP_ANALYSIS.md))
+- **Decentralized sequencing** — one sequencer; forced inclusion bounds the damage. Deliberately deferred until fault proofs exist
+- **Alerting** — rules exist and evaluate; no Alertmanager, so nothing pages anyone
+- **TLS on the public RPC** — the host blocks 80/443 on trial accounts
+- **Operator keys on the signing service in production** — built and tested, not in use
+
+### 🔍 NOT AUDITED
+
+No external firm has read this code. 385 contract tests are evidence of intent, not of
+correctness. "Audited" will not appear here until a report exists and is linked.
+
+### 🚫 NOT MAINNET READY
+
+Self-assessed **51/100**, with fault proofs and audit — 30 of the 100 — both at zero.
+The full scorecard gives STATUS, EVIDENCE and REMAINING WORK per category:
+[MAINNET_READINESS.md](MAINNET_READINESS.md).
 
 ---
 
@@ -131,6 +153,9 @@ docs/                  65 documents, rendered at kaurax.network/docs
 
 | | |
 |---|---|
+| [**Reproduce every claim**](docs/REPRODUCIBLE_TESTNET_DEMO.md) | One command, from a clean clone, ~15 minutes |
+| [Fault proof gap analysis](docs/FAULT_PROOF_GAP_ANALYSIS.md) | The distance to a real fault proof, measured against the code |
+| [Technical brief for funders](docs/FUNDING_TECHNICAL_BRIEF.md) | What exists, what does not, and what the difference would cost |
 | [Architecture audit](docs/ARCHITECTURE_AUDIT.md) | What exists, what is trusted, what is missing |
 | [Mainnet readiness](MAINNET_READINESS.md) | Scorecard with evidence per row |
 | [Dispute game](docs/DISPUTE_GAME.md) | Bonds, bisection, and why it is not a fault proof |

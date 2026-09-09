@@ -153,6 +153,17 @@ step "Settlement resumes once the sequencer includes what it was avoiding"
   echo $! > "$RUN_DIR/kaurax-node.pid" )
 if wait_until 60 node_up; then pass "sequencer restarted"; else fail "sequencer did not restart"; exit 1; fi
 
+# `cd ... && nohup node ... &` backgrounds the whole `&&` list, so `$!` is the subshell that
+# runs it and the node is that subshell's child. stop.sh kills what the pid file names, so the
+# recorded pid died and the node kept running — an orphan holding port 8420 that every later
+# start.sh then refused to start against. Record whoever actually holds the port.
+_recorded="$(cat "$RUN_DIR/kaurax-node.pid" 2>/dev/null || true)"
+_listening="$(lsof -nP -iTCP:"${KAURAX_RPC_PORT:-8420}" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $2}' || true)"
+if [ -n "$_listening" ] && [ "$_recorded" != "$_listening" ]; then
+  echo "$_listening" > "$RUN_DIR/kaurax-node.pid"
+  note "recorded pid $_recorded was not the listener; corrected to $_listening"
+fi
+
 not_overdue() { [ "$(cast call "$KAURAX_PORTAL_ADDRESS" "hasOverdueForcedTransactions()(bool)" --rpc-url "$L2")" = "false" ]; }
 if wait_until 120 not_overdue; then
   pass "the sequencer included and acknowledged the forced transaction; nothing is overdue"

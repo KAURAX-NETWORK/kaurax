@@ -1,5 +1,10 @@
 # KAURAX — Final Readiness Report
 
+> **SNAPSHOT.** A report of the round named above, kept unaltered so its conclusions can be
+> traced to the numbers they were drawn from. For current status see
+> [TEST_STATUS.md](TEST_STATUS.md), [SECURITY_STATUS.md](SECURITY_STATUS.md) and
+> [../MAINNET_READINESS.md](../MAINNET_READINESS.md).
+
 **Date:** 2026-09-09 · Every score has evidence beside it. The low scores are the informative
 ones, and none has been rounded up.
 
@@ -9,7 +14,7 @@ ones, and none has been rounded up.
 
 | # | Category | Score | Evidence |
 |---|---|---|---|
-| 1 | Protocol correctness | **72** | 385 Solidity tests, 47 acceptance checks, 404 differential cases. Settlement contracts 86–93% line coverage. Branch coverage 16–70% — revert paths largely unexercised |
+| 1 | Protocol correctness | **72** | 338 Solidity tests, 47 acceptance checks, 404 differential cases. Settlement contracts 86–93% line coverage. Branch coverage 16–70% — revert paths largely unexercised |
 | 2 | Execution | **45** | EVM-equivalent via `anvil`, but the state transition function is an external binary over JSON-RPC. Not instrumentable, not pinned, not differentially tested against a second implementation (I-1) |
 | 3 | Settlement | **70** | Output roots, proposer bonds, finalization interlock, forced-inclusion gate — tested and verified live. **Nothing verifies a root corresponds to execution** |
 | 4 | Data availability | **90** | Every block is L2 calldata; acceptance rebuilds a signed transaction from it alone. Inherits the L2's availability — the honest ceiling |

@@ -101,7 +101,7 @@ MIT licensed, public repository, public testnet, no token sale and no tokenomics
 document here. KAX is a testnet gas token with no monetary value.
 
 The documentation is written so that someone can find the weaknesses without running the
-code: three HIGH security findings are open and listed, the readiness score is 52/100 and
+code: three HIGH security findings are open and listed, the readiness score is 51/100 and
 published, and two production outages caused by the team are written up in the security
 review.
 

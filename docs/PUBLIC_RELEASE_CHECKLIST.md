@@ -1,5 +1,10 @@
 # KAURAX — Public Release Checklist
 
+> **SNAPSHOT.** A report of the round named above, kept unaltered so its conclusions can be
+> traced to the numbers they were drawn from. For current status see
+> [TEST_STATUS.md](TEST_STATUS.md), [SECURITY_STATUS.md](SECURITY_STATUS.md) and
+> [../MAINNET_READINESS.md](../MAINNET_READINESS.md).
+
 **Commit:** `6b1f81a` · **Date:** 2026-09-08
 
 Ticked only where verified in this audit. Nothing is ticked on the strength of a previous

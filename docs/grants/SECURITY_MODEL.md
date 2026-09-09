@@ -79,7 +79,7 @@ funded project cannot quietly start using the word.
 [../SECURITY_STATUS.md](../SECURITY_STATUS.md). The open ones are the trust assumptions above,
 not undisclosed bugs — they are open because they require the work this grant funds.
 
-Mainnet readiness self-assessment: **52/100**
+Mainnet readiness self-assessment: **51/100**
 ([MAINNET_READINESS.md](../../MAINNET_READINESS.md)).
 
 ---

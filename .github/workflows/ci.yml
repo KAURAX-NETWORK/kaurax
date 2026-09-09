@@ -102,6 +102,15 @@ jobs:
       - name: End-to-end acceptance test
         run: ./tests/acceptance.sh
 
+      # Until now every claim about the dispute game rested on Foundry tests against a
+      # simulated L2, and the game was not deployed on the devnet at all — so nobody cloning
+      # the repository could reproduce a single one of them. This runs against the deployed
+      # contracts: a stranger challenges a real output root, narrows it with real moves,
+      # blocks finalization while doing so, and has the root deleted. No guardian is involved,
+      # because the timeout path is the part of this mechanism that is actually trustless.
+      - name: The dispute game, against the live chain
+        run: ./tests/dispute.sh
+
       # Hostile input at the protocol edge. These need a running chain, so they cannot live in
       # the default `pnpm test` — a fresh clone must be able to run its tests without one.
       # Examples are read constantly and run almost never, which is how they rot.
