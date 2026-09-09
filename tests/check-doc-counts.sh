@@ -28,11 +28,26 @@ ok()   { printf "  ${GREEN}OK${RESET}    %s ${DIM}%s${RESET}\n" "$1" "${2:-}"; }
 
 printf "\n${BOLD}Counting what the suites actually report${RESET}\n"
 
-SOL="$( (cd blockchain/contracts && forge test 2>/dev/null) | grep -oE '[0-9]+ tests passed' | grep -oE '^[0-9]+' | tail -1)"
-SUITES="$( (cd blockchain/contracts && forge test 2>/dev/null) | grep -oE 'Ran [0-9]+ test suites' | grep -oE '[0-9]+' | tail -1)"
-NODE="$(pnpm test 2>/dev/null | grep -oE 'Tests  [0-9]+ passed' | grep -oE '[0-9]+' | awk '{s+=$1} END {print s}')"
+# stderr is kept, not discarded. Swallowing it turned "forge-std is missing" into a blank
+# variable and a generic "is the toolchain installed?", which says nothing a reader can act
+# on — the same failure this whole gate exists to prevent, in the gate itself.
+FORGE_OUT="$( (cd blockchain/contracts && forge test 2>&1) )"
+SOL="$(printf '%s' "$FORGE_OUT" | grep -oE '[0-9]+ tests passed' | grep -oE '^[0-9]+' | tail -1)"
+SUITES="$(printf '%s' "$FORGE_OUT" | grep -oE 'Ran [0-9]+ test suites' | grep -oE '[0-9]+' | tail -1)"
 
-[ -n "$SOL" ] && [ -n "$NODE" ] || { printf "${RED}could not read counts — is the toolchain installed?${RESET}\n"; exit 1; }
+NODE_OUT="$(pnpm test 2>&1)"
+NODE="$(printf '%s' "$NODE_OUT" | grep -oE 'Tests  [0-9]+ passed' | grep -oE '[0-9]+' | awk '{s+=$1} END {print s}')"
+
+if [ -z "$SOL" ]; then
+  printf "${RED}could not read a solidity count from \`forge test\`${RESET}\n"
+  printf "${DIM}%s${RESET}\n" "$(printf '%s' "$FORGE_OUT" | tail -15)"
+  exit 1
+fi
+if [ -z "$NODE" ]; then
+  printf "${RED}could not read a node count from \`pnpm test\`${RESET}\n"
+  printf "${DIM}%s${RESET}\n" "$(printf '%s' "$NODE_OUT" | tail -15)"
+  exit 1
+fi
 ok "forge test" "$SOL tests in $SUITES suites"
 ok "pnpm test" "$NODE tests"
 
