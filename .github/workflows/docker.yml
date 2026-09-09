@@ -15,7 +15,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [node, explorer]
+        # These are the images docker-compose.yml actually builds. The matrix used to name
+        # `node` and `explorer` at infra/docker/Dockerfile.<name>, a flat layout that has not
+        # existed since the infra restructure — so both builds failed on every run. Nobody
+        # noticed because this workflow only fires on changes under infra/docker or to
+        # docker-compose.yml, and neither had been touched since.
+        image: [bootstrap, l3, indexer, api]
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -23,7 +28,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: infra/docker/Dockerfile.${{ matrix.image }}
+          file: infra/docker/${{ matrix.image }}/Dockerfile
           push: false
           tags: kaurax-${{ matrix.image }}:ci
           cache-from: type=gha
