@@ -48,7 +48,7 @@ command you can run on its own once `./infra/scripts/devnet/start.sh` has comple
 | # | Claim | Command | What proves it |
 |---|---|---|---|
 | 1 | Contracts behave as specified | `cd blockchain/contracts && forge test` | **385 passed**, 23 suites |
-| 2 | Node and services behave as specified | `pnpm test` | **181 passed**, 29 tasks |
+| 2 | Node and services behave as specified | `pnpm test` | **186 passed**, 29 tasks |
 | 3 | The verifier agrees with the reference emulator | `./tests/check-kvs-fixtures.sh` | Fixtures regenerate byte-identically, so the 404 differential cases are checked against the *current* emulator |
 | 4 | Documented numbers match reality | `./tests/check-doc-counts.sh` | Every count in every document equals what the suites report |
 | 5 | The chain runs, end to end | `./tests/acceptance.sh` | **47 checks**: execution, batching, DA, withdrawal, replay protection |

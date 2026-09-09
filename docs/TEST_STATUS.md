@@ -45,11 +45,11 @@ number.
 
 ## Node and services — `pnpm test`
 
-**181 passed · 0 failed · 29 turbo tasks**
+**186 passed · 0 failed · 29 turbo tasks**
 
 | Package | Tests | Covers |
 |---|---|---|
-| `@kaurax/l3` | 80 | WAL recovery, derivation checkpoint, L2 reorgs, signing seam, Merkle, batch encoding, settlement hashing |
+| `@kaurax/l3` | 85 | WAL recovery, derivation checkpoint, L2 reorgs, signing seam, Merkle, batch encoding, settlement hashing, **batch completeness** |
 | `@kaurax/api` | 35 | Config validation, route behaviour, bounded health probes |
 | `@kaurax/kvs` | 29 | Reference emulator: machine semantics and commitment tree |
 | `@kaurax/indexer` | 16 | Log decoding, token metadata |
@@ -102,9 +102,9 @@ discloses its own trust assumptions.
 | | |
 |---|---|
 | Solidity | **385** |
-| Node and services | **181** |
+| Node and services | **186** |
 | Live end-to-end | **12** |
-| **Total automated** | **578** |
+| **Total automated** | **583** |
 
 A count is evidence of coverage, not of correctness. The adversarial suites matter more than
 the total: they use real attacker contracts rather than asserting intent.

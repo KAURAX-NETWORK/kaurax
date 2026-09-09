@@ -90,6 +90,8 @@ Each was verified to fail when it should, not only to pass.
 | `tests/check-kvs-fixtures.sh` | **new** — the fixture freshness gate |
 | `infra/monitoring/alertmanager.yml` | **new** — routing, severity split, four inhibition rules |
 | `tests/check-alerting.sh` | **new** — proves a real alert reaches a receiver |
+| `blockchain/l3/src/batcher/Batcher.ts` | H-5 fix: truncate rather than publish an incomplete batch |
+| `blockchain/l3/test/batcher-completeness.test.ts` | **new** — 5 tests |
 | `tests/check-doc-counts.sh` | Prose, per-suite table and score checks |
 | `tests/apps-smoke.ts` | Seeds a fresh chain instead of failing on missing state |
 | `tests/forced-inclusion.sh` | Records the node's real pid, not the subshell's |
@@ -129,7 +131,7 @@ Each was verified to fail when it should, not only to pass.
 | | Before | After |
 |---|---|---|
 | `forge test` | 338, 18 suites | **385, 23 suites** |
-| `pnpm test` | 179 | **181** |
+| `pnpm test` | 179 | **186** |
 | `tests/acceptance.sh` | 47 | 47 |
 | `tests/apps-smoke.sh` | 43 of 45 (2 failed on a fresh chain) | **45** |
 | `tests/dispute.sh` | did not exist | **23** |
@@ -179,6 +181,7 @@ Failures encountered and fixed during the round, listed because they were real:
 | ID | Issue | Evidence |
 |---|---|---|
 | **H-4** | Bridge escrow could be credited more than it received | `BridgeReentrancy.t.sol`; verified failing without the guard |
+| **H-5** | A batch could advertise a block whose transactions it did not carry | `batcher-completeness.test.ts`; three of five tests fail against the old behaviour, two controls pass either way |
 | — | Consensus-critical hashing had no Solidity-side test, and the TypeScript test recomputed its own expectation rather than pinning Solidity's | Three shared vectors asserted on both sides; verified by swapping two fields |
 | — | Bridges, message passer, bridged token and hashing outside the coverage floor | Gate extended 5 → 13 contracts |
 | — | The KVS differential rig could not detect emulator drift | `check-kvs-fixtures.sh` |

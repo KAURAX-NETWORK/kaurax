@@ -19,6 +19,13 @@ import type {
 } from "../settlement/types.js";
 import type {L2SettlementAdapter} from "../settlement/L2SettlementAdapter.js";
 import {encodeBatch, rlpSize, type BatchBlock} from "./encoding.js";
+
+/**
+ * How many consecutive flushes may be blocked by one block's missing payload before the
+ * batcher reports an error. The write-ahead log is normally a moment behind the head, so a
+ * single truncation is routine; twenty in a row is a payload that is never going to arrive.
+ */
+const STALL_ATTEMPTS_BEFORE_ERROR = 20;
 import {createLogger} from "../log.js";
 
 /** Supplies the raw transaction bytes the sequencer put into each block. */
@@ -39,6 +46,9 @@ export class Batcher implements BatcherInterface {
   private busy = false;
 
   private nextBlock = 1n;
+
+  /** Set while a block with transactions is waiting for its payload to become durable. */
+  private stalledOn: {block: bigint; attempts: number} | null = null;
   private lastSubmission: BatchSubmission | null = null;
   private lastError: string | null = null;
   private head = 0n;
@@ -111,27 +121,69 @@ export class Batcher implements BatcherInterface {
         : this.head;
 
     const blocks: BatchBlock[] = [];
+    let truncatedAt: bigint | null = null;
+
     for (let n = this.nextBlock; n <= end; n++) {
       const payload = await this.payloads.getBlockPayload(n);
       if (payload) {
         blocks.push(payload);
         continue;
       }
-      // No recorded payload. With the write-ahead log this should only happen for blocks
-      // produced before the log existed, or for genesis. It is still handled rather than
-      // fatal, and logged loudly when the block was not empty.
+
       const block = await this.engine.getBlock(n);
       if (!block) throw new Error(`engine has no block ${n}`);
+
       if (block.transactions.length > 0) {
-        this.log.warn("block payload unavailable; batching header only", {
-          block: n.toString(),
-          txCount: block.transactions.length,
-        });
+        // This used to publish the block header-only and carry on. That silently broke the
+        // one property KAURAX leads with: the batch still advertised l3EndBlock >= n, the
+        // on-chain commitment still matched the bytes, and n's transactions were simply not
+        // in them. Anyone rebuilding the chain from L2 data alone got a different chain,
+        // with nothing on chain to say so.
+        //
+        // Seen in CI: block 7 held one transaction, its payload was not yet durable, and the
+        // batch went out advertising blocks 2-7 with that transaction missing. The
+        // acceptance suite's data-availability check caught it, which is what it is for.
+        //
+        // Stop the batch before n instead. The write-ahead log is usually a moment behind
+        // the head, so n goes out in the next batch, complete.
+        truncatedAt = block.number;
+        break;
       }
+
+      // Genuinely empty: a header-only entry loses nothing, because there is nothing to lose.
       blocks.push({number: block.number, timestamp: block.timestamp, transactions: []});
     }
 
+    if (truncatedAt !== null) {
+      this.stalledOn = this.stalledOn?.block === truncatedAt
+        ? {block: truncatedAt, attempts: this.stalledOn.attempts + 1}
+        : {block: truncatedAt, attempts: 1};
+
+      this.log.warn("batch truncated: block payload is not durable yet", {
+        block: truncatedAt.toString(),
+        batching: blocks.length > 0 ? `${this.nextBlock}-${blocks[blocks.length - 1]!.number}` : "nothing",
+        attempts: this.stalledOn.attempts,
+      });
+
+      // A payload that never arrives would otherwise stall batching in silence, which is the
+      // failure this whole change exists to remove. Surface it: `lastError` is what the
+      // health endpoint and the batcher alerts read.
+      if (this.stalledOn.attempts >= STALL_ATTEMPTS_BEFORE_ERROR) {
+        throw new Error(
+          `L3 block ${truncatedAt} has transactions but no durable payload after ` +
+            `${this.stalledOn.attempts} attempts; batching cannot advance past it without ` +
+            `publishing an incomplete batch`,
+        );
+      }
+    } else {
+      this.stalledOn = null;
+    }
+
     if (blocks.length === 0) return null;
+
+    // Not `end`: the batch may have been cut short above, and advertising a range wider than
+    // the payload is exactly the bug.
+    const batchEnd = blocks[blocks.length - 1]!.number;
 
     const uncompressed = rlpSize(blocks);
     const payload = encodeBatch(blocks);
@@ -143,13 +195,13 @@ export class Batcher implements BatcherInterface {
       );
     }
 
-    const commitment = await this.da.publish(payload, {l3StartBlock: this.nextBlock, l3EndBlock: end});
+    const commitment = await this.da.publish(payload, {l3StartBlock: this.nextBlock, l3EndBlock: batchEnd});
     const batchCount = await this.settlement.batchCount();
 
     const submission: BatchSubmission = {
       batchIndex: Number(batchCount - 1n),
       l3StartBlock: this.nextBlock,
-      l3EndBlock: end,
+      l3EndBlock: batchEnd,
       uncompressedBytes: uncompressed,
       compressedBytes: payload.length,
       commitment,
@@ -159,19 +211,19 @@ export class Batcher implements BatcherInterface {
     const txCount = blocks.reduce((n, b) => n + b.transactions.length, 0);
     this.log.info("batch submitted to L2", {
       batchIndex: submission.batchIndex,
-      l3Blocks: `${this.nextBlock}-${end}`,
+      l3Blocks: `${this.nextBlock}-${batchEnd}`,
       txCount,
       bytes: `${uncompressed}->${payload.length}`,
       l2Tx: commitment.txHash,
       l2Block: commitment.blockNumber?.toString() ?? "pending",
     });
 
-    this.nextBlock = end + 1n;
+    this.nextBlock = batchEnd + 1n;
     this.lastSubmission = submission;
 
     // The L2 has the data now, so the local copy can go. Only here — pruning before the
     // batch was mined would discard the only copy of something not yet published.
-    this.payloads.pruneWal(end);
+    this.payloads.pruneWal(batchEnd);
 
     return submission;
   }

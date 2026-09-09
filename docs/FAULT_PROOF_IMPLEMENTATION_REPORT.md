@@ -239,7 +239,7 @@ coverage → MPT state model → audit → then wire it in.
 
 ```
 forge test          385 passed, 0 failed, 23 suites
-pnpm test           181 passed, 29 turbo tasks
+pnpm test           186 passed, 29 turbo tasks
 pnpm typecheck      26/26
 forge fmt --check   clean
 ```

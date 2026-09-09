@@ -45,6 +45,8 @@ Every finding ever recorded, with its current state. Nothing is removed once wri
 |---|---|---|---|---|
 | H-1 | No fault proof over KAURAX execution | **OPEN** | A real one-step verifier now exists for a documented EVM subset (`KauraxOneStepVerifier`), deliberately unwired from settlement. Nothing verifies KAURAX's own execution: the engine is `anvil` over JSON-RPC and cannot emit a trace | The security ceiling. Trust in the proposer and guardian |
 | H-2 | Guardian is final arbiter | **OPEN — mitigated** | Now a 2-of-3 multisig, not a key; reasons on chain; silence refunds both sides | Follows from H-1; cannot close before a verifier |
+| H-4 | L2 bridge escrow could be credited more than it received | **FIXED** | Reentrancy guard on `bridgeERC20To`; `BridgeReentrancy.t.sol` reproduced 200 escrowed / 300 credited before the fix | None known |
+| H-5 | A batch could advertise a block whose transactions it did not carry | **FIXED** | The batcher published a block header-only when its write-ahead payload was not durable, while still advertising the range as covered. Caught in CI by the acceptance suite's data-availability check; `batcher-completeness.test.ts` | None known |
 | H-3 | No external audit | **OPEN** | None commissioned | Unknown unknowns in contracts holding the bridge |
 | M-1 | Dispute could outlive finalization | **FIXED** | `isOutputFinalized` consults the game; portal refuses unsettled outputs; 2 tests | None known |
 | M-2 | Proposer bonded late | **FIXED** | Escrow at proposal time; forfeit, refund and collateral-refund paths tested | None known |

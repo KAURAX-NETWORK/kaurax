@@ -15,7 +15,7 @@ Re-run at audit time, not copied from an earlier document.
 | Check | Command | Result |
 |---|---|---|
 | Solidity tests | `forge test` | **385 passed**, 0 failed, 23 suites |
-| Node / service tests | `pnpm test` | **181 passed**, 26/29 turbo tasks |
+| Node / service tests | `pnpm test` | **186 passed**, 26/29 turbo tasks |
 | Live end-to-end | `tests/e2e-testnet.sh` | **12 passed** against the public testnet |
 | Types | `pnpm typecheck` | 25/25 |
 | Builds | `pnpm build` | 19/19 |

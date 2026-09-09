@@ -87,7 +87,7 @@ Each row is verified by a named command, not by assertion.
 | Failure behaviour under fault injection | `tests/chaos.sh` |
 | Wallet, CLI, faucet, explorer, indexed history | `tests/e2e-testnet.sh` |
 
-**Totals:** `forge test` → 385 passed, 23 suites. `pnpm test` → 181 passed. Acceptance → 47
+**Totals:** `forge test` → 385 passed, 23 suites. `pnpm test` → 186 passed. Acceptance → 47
 checks. Dispute → 23. Apps → 45. Live end-to-end → 12.
 
 ---

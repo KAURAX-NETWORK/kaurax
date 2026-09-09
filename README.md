@@ -45,7 +45,7 @@ about fifteen minutes: [docs/REPRODUCIBLE_TESTNET_DEMO.md](docs/REPRODUCIBLE_TES
 | **Governance** | Every privileged role held by a 2-of-3 multisig or a 1-hour timelock | `Governance.t.sol`, `TimelockSelfAdmin.t.sol` |
 | **Wallet and CLI** | Real signing, encrypted keys, faucet, explorer, indexed history | `tests/e2e-testnet.sh` |
 | **Alerting** | Rules route by severity to a real destination; a deploy without one is refused | `tests/check-alerting.sh` |
-| **Tests** | 385 contract · 181 node · 12 live end-to-end | `forge test`, `pnpm test` |
+| **Tests** | 385 contract · 186 node · 12 live end-to-end | `forge test`, `pnpm test` |
 
 ### 🧪 EXPERIMENTAL — real code, deliberately not load-bearing
 
