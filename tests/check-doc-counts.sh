@@ -31,12 +31,18 @@ printf "\n${BOLD}Counting what the suites actually report${RESET}\n"
 # stderr is kept, not discarded. Swallowing it turned "forge-std is missing" into a blank
 # variable and a generic "is the toolchain installed?", which says nothing a reader can act
 # on — the same failure this whole gate exists to prevent, in the gate itself.
-FORGE_OUT="$( (cd blockchain/contracts && forge test 2>&1) )"
+# Colour codes are stripped before matching. A terminal-less local run is plain text, but CI
+# forces colour, so vitest writes "Tests \e[1m\e[32m10 passed" and a pattern expecting
+# "Tests  10 passed" finds nothing — which is how this gate failed only on CI while passing
+# on every machine it was written on.
+strip_ansi() { sed -E 's/\x1b\[[0-9;]*[A-Za-z]//g'; }
+
+FORGE_OUT="$( (cd blockchain/contracts && forge test 2>&1) | strip_ansi )"
 SOL="$(printf '%s' "$FORGE_OUT" | grep -oE '[0-9]+ tests passed' | grep -oE '^[0-9]+' | tail -1)"
 SUITES="$(printf '%s' "$FORGE_OUT" | grep -oE 'Ran [0-9]+ test suites' | grep -oE '[0-9]+' | tail -1)"
 
-NODE_OUT="$(pnpm test 2>&1)"
-NODE="$(printf '%s' "$NODE_OUT" | grep -oE 'Tests  [0-9]+ passed' | grep -oE '[0-9]+' | awk '{s+=$1} END {print s}')"
+NODE_OUT="$(pnpm test 2>&1 | strip_ansi)"
+NODE="$(printf '%s' "$NODE_OUT" | grep -oE 'Tests +[0-9]+ passed' | grep -oE '[0-9]+' | awk '{s+=$1} END {print s}')"
 
 if [ -z "$SOL" ]; then
   printf "${RED}could not read a solidity count from \`forge test\`${RESET}\n"
