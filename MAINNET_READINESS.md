@@ -1,6 +1,6 @@
 # KAURAX — Mainnet Readiness
 
-**Date:** 2026-09-09 · **Score: 51/100** · **Verdict: not ready, and one reason dominates.**
+**Date:** 2026-09-09 · **Score: 52/100** · **Verdict: not ready, and one reason dominates.**
 
 There is no fault proof system over KAURAX execution (a one-step verifier exists for a
 documented EVM subset and is not connected to settlement — see docs/FAULT_PROOFS.md). Everything else on this page is secondary to that, and no
@@ -187,7 +187,7 @@ identical firewall rules, and by the API refusing to disable the firewall at all
 | Metrics | ✅ Prometheus on 7300 |
 | Backups | ✅ script verifies by restoring and comparing rows |
 | Recovery rehearsal | ✅ performed on the server — backup, checksum, restore, row comparison |
-| Alerting | ❌ metrics exist, nothing pages anyone |
+| Alerting | ✅ Alertmanager routes by severity to a configured destination; `tests/check-alerting.sh` proves a real alert reaches a receiver |
 
 Documented failure behaviour for every component: `docs/TESTNET.md`.
 
@@ -246,7 +246,7 @@ whole sequence on a fork.**
 
 ---
 
-## Score: 51/100
+## Score: 52/100
 
 Every row states what would have to be true for the score to move, and names the command that
 produced its evidence. Nothing here is quoted from an earlier report.
@@ -261,9 +261,9 @@ produced its evidence. Nothing here is quoted from an earlier report.
 | **Fault proofs** | **25** | **0** | **FAIL** |
 | Governance | 5 | 5 | **PASS** |
 | Key management | 5 | 2 | **PARTIAL** |
-| Operations | 5 | 4 | **PARTIAL** |
+| Operations | 5 | 5 | **PASS** |
 | **Audit** | **5** | **0** | **FAIL** |
-| **Total** | **100** | **51** | |
+| **Total** | **100** | **52** | |
 
 ### Execution and DA — PASS · 15/15
 
@@ -348,16 +348,26 @@ without ever holding a key. `KAURAX_SIGNER_MODE=local` on the devnet.
 the live deployment. This is an operational change on a running chain and deserves its own
 window.
 
-### Operations — PARTIAL · 4/5
+### Operations — PASS · 5/5
 
 **EVIDENCE:** health endpoints with bounded probes (`health-deadlines.test.ts`); Prometheus on
 7300; backup verified by restoring and comparing rows; `tests/chaos.sh` fault injection;
 `tests/reproduce.sh` runs the whole thing from a clean clone.
 
-**REMAINING WORK:** **alerting reaches nobody.** `infra/monitoring/alerts.yml` is loaded via
-`rule_files`, but `prometheus.yml` has no `alerting:` block and no Alertmanager is deployed, so
-rules evaluate into a UI nobody is watching at 3am. This row was 5/5 while carrying the note
-"alerting still absent", which is not a defensible pair; corrected to 4.
+Alerting now delivers. `prometheus.yml` had no `alerting:` block and no Alertmanager was
+deployed, so every rule evaluated into a UI nobody is watching at 3am. Alertmanager routes by
+severity with four inhibition rules, and `tests/check-alerting.sh` posts a real
+`KauraxSequencerDown` through the real routing tree and asserts a receiver was called. It runs
+in CI.
+
+The failure mode is now unreachable rather than merely fixed: a missing bind-mount source is
+not an error to Docker — it creates an empty directory, and Alertmanager starts cleanly and
+fails only when an alert fires. `deploy.sh` refuses to deploy without a destination file, and
+refuses if it still holds the example value.
+
+**REMAINING WORK:** an external dead-man's switch. If Alertmanager itself is down, Prometheus
+has nowhere to send the alert saying so. That needs a heartbeat routed to a third-party service
+that pages when the heartbeat stops, which is a deployment decision rather than code.
 
 ### Audit — FAIL · 0/5
 
@@ -368,10 +378,14 @@ author of the code is the weakest kind there is.
 
 ---
 
-### Why the total moved from 52 to 51
+### Why the total moved 52 → 51 → 52
 
-Not because anything regressed. Operations was scored 5/5 while its own note said alerting was
-absent; the two could not both be true, and the note was the accurate half.
+Operations was scored 5/5 while its own note said alerting was absent; the two could not both
+be true, and the note was the accurate half, so it went to 4. Alerting now delivers and is
+verified end to end in CI, so it returns to 5.
+
+That round trip is the point rather than an embarrassment: the row moved down when the claim
+was checked and back up when the gap was closed, which is what a scorecard is for.
 
 This round fixed a HIGH severity bug in the bridge, raised four security-critical contracts
 from below the coverage floor to 100%, put the dispute game on the devnet and demonstrated it

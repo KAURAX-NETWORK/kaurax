@@ -21,7 +21,7 @@ block there as calldata — so anyone can rebuild the chain without asking KAURA
 > party challenges a bad state commitment **and** the guardian rules correctly.* A fault proof
 > would remove the second clause — and that is the project's next priority.
 >
-> Self-assessed mainnet readiness: **51/100**, published with per-row evidence.
+> Self-assessed mainnet readiness: **52/100**, published with per-row evidence.
 
 ---
 

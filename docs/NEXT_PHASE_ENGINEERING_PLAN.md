@@ -77,9 +77,11 @@ Ordered by how much of the system's safety rests on them.
    not in use. Compromising the node yields sequencer, batcher and proposer identities.
 7. **No TLS on the public RPC.** Traffic readable and modifiable in transit. Blocked
    externally by the host on trial accounts, not by anything in this repository.
-8. **Alert rules evaluate but reach nobody.** `infra/monitoring/alerts.yml` is loaded by
-   Prometheus via `rule_files`, but `prometheus.yml` has no `alerting:` block and no
-   Alertmanager is deployed. Alerts fire into a UI nobody is watching at 3am.
+8. ~~**Alert rules evaluate but reach nobody.**~~ **FIXED.** `prometheus.yml` had no
+   `alerting:` block and no Alertmanager was deployed, so rules fired into a UI nobody is
+   watching at 3am. Alertmanager now routes by severity, `deploy.sh` refuses to deploy
+   without a destination, and `tests/check-alerting.sh` proves a real alert reaches a
+   receiver.
 9. **The contracts holding escrowed value are not coverage-gated.** The CI floor covers
    `KauraxPortal`, `KauraxL2OutputOracle`, `KauraxMultisig`, `KauraxTimelock` and
    `MerkleTree`. It does **not** cover `KauraxL2ERC20Bridge`, `KauraxL3ERC20Bridge` or
@@ -199,7 +201,7 @@ Grouped by whether this phase can deliver them.
    in Foundry against a simulated L2, not against the running devnet.
 4. **Documentation reconciliation** — one authoritative statement per claim, the rest
    explicitly superseded, and a doc-count gate that actually covers prose.
-5. **Alertmanager**, so the alert rules that already exist reach a human.
+5. ~~**Alertmanager**, so the alert rules that already exist reach a human.~~ **DONE.**
 6. **Operator keys onto the signing service** in the live deployment.
 7. **TLS**, once the host account is upgraded.
 8. **Source verification in the explorer** — currently reports `verified: false` honestly.

@@ -23,7 +23,7 @@ anything.
 > A fault proof would remove the second clause. Building one is
 > [18–30 engineer-months](docs/FAULT_PROOF_ROADMAP.md).
 >
-> Self-assessed mainnet readiness: **51/100** ([scorecard](MAINNET_READINESS.md)).
+> Self-assessed mainnet readiness: **52/100** ([scorecard](MAINNET_READINESS.md)).
 
 ---
 
@@ -44,6 +44,7 @@ about fifteen minutes: [docs/REPRODUCIBLE_TESTNET_DEMO.md](docs/REPRODUCIBLE_TES
 | **Dispute game** | A stranger challenges a root, bisection narrows it, finalization is blocked, the root is deleted — no guardian involved | `tests/dispute.sh`, 23 checks |
 | **Governance** | Every privileged role held by a 2-of-3 multisig or a 1-hour timelock | `Governance.t.sol`, `TimelockSelfAdmin.t.sol` |
 | **Wallet and CLI** | Real signing, encrypted keys, faucet, explorer, indexed history | `tests/e2e-testnet.sh` |
+| **Alerting** | Rules route by severity to a real destination; a deploy without one is refused | `tests/check-alerting.sh` |
 | **Tests** | 385 contract · 181 node · 12 live end-to-end | `forge test`, `pnpm test` |
 
 ### 🧪 EXPERIMENTAL — real code, deliberately not load-bearing
@@ -57,7 +58,6 @@ about fifteen minutes: [docs/REPRODUCIBLE_TESTNET_DEMO.md](docs/REPRODUCIBLE_TES
 
 - **Fault proofs over KAURAX execution** — the engine is `anvil` over JSON-RPC and cannot emit a trace, and output roots do not commit to one. 18–30 engineer-months ([the gap, measured against the code](docs/FAULT_PROOF_GAP_ANALYSIS.md))
 - **Decentralized sequencing** — one sequencer; forced inclusion bounds the damage. Deliberately deferred until fault proofs exist
-- **Alerting** — rules exist and evaluate; no Alertmanager, so nothing pages anyone
 - **TLS on the public RPC** — the host blocks 80/443 on trial accounts
 - **Operator keys on the signing service in production** — built and tested, not in use
 
@@ -68,7 +68,7 @@ correctness. "Audited" will not appear here until a report exists and is linked.
 
 ### 🚫 NOT MAINNET READY
 
-Self-assessed **51/100**, with fault proofs and audit — 30 of the 100 — both at zero.
+Self-assessed **52/100**, with fault proofs and audit — 30 of the 100 — both at zero.
 The full scorecard gives STATUS, EVIDENCE and REMAINING WORK per category:
 [MAINNET_READINESS.md](MAINNET_READINESS.md).
 

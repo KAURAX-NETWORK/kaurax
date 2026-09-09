@@ -45,6 +45,13 @@ jobs:
       - name: The KVS fixtures still match the reference emulator
         run: ./tests/check-kvs-fixtures.sh
 
+      # Rules existed and evaluated for as long as this repository has had monitoring, and
+      # reached nobody: no `alerting:` block, no Alertmanager. This asserts the pipeline
+      # actually delivers — a real alert, through the real routing tree, to a receiver that
+      # records being called. ubuntu-latest has Docker.
+      - name: Alerts are routed and delivered
+        run: ./tests/check-alerting.sh
+
       - name: Unit tests
         run: pnpm test
 

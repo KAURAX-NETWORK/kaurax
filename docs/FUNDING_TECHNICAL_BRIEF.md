@@ -134,9 +134,8 @@ Stated first, in full, because a reviewer will find them anyway.
    assumed.
 7. **The verifier covers a subset no real contract stays inside.** No `CALL`, `CREATE`, `LOG`
    or environment opcodes.
-8. **Alert rules exist but reach nobody.** No Alertmanager is deployed.
 
-Self-assessed mainnet readiness: **51/100** ([scorecard](../MAINNET_READINESS.md)), with
+Self-assessed mainnet readiness: **52/100** ([scorecard](../MAINNET_READINESS.md)), with
 fault proofs and audit — 30 of the 100 — both at zero.
 
 ---

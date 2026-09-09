@@ -61,3 +61,9 @@ examples/basic-contract/out/
 examples/basic-contract/cache/
 
 .reproduce/
+
+# The alert destination. Contains a URL with a token in it; never committed.
+infra/monitoring/alert-webhook-url
+
+# Scratch directory used by tests/check-alerting.sh
+.alerting-check.*

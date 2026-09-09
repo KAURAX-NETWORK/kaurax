@@ -61,7 +61,7 @@ KAURAX is a **testnet**. KAX has no monetary value.
 4. **No external audit.**
 
 These are documented in `docs/SECURITY_REVIEW.md` with severities, and in
-`MAINNET_READINESS.md` with a readiness score of 51/100.
+`MAINNET_READINESS.md` with a readiness score of 52/100.
 
 ---
 

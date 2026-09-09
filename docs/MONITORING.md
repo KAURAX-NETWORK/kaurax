@@ -100,6 +100,72 @@ once there is a week of data.
 
 ---
 
+## 3a. Delivery
+
+Until Alertmanager was added, every rule above evaluated and **reached nobody**. Prometheus had
+no `alerting:` block, so it computed which alerts were firing, displayed them in its own UI,
+and stopped. That is indistinguishable from alerting until the night it matters.
+
+```
+alerts.yml  ──evaluated by──▶  Prometheus  ──alerting:──▶  Alertmanager  ──webhook──▶  you
+```
+
+### Configuring the destination
+
+Alertmanager reads the destination from a file, not from the configuration and not from an
+environment variable — the URL carries a token, and an environment variable would expose it to
+anyone who can run `docker inspect`.
+
+```bash
+cp infra/monitoring/alert-webhook-url.example infra/monitoring/alert-webhook-url
+$EDITOR infra/monitoring/alert-webhook-url      # one line, the full URL
+```
+
+The file is gitignored. `infra/scripts/deploy.sh` refuses to deploy without it, and refuses if
+it still holds the example value. That guard exists because of how this fails otherwise: a
+missing bind-mount source is not an error to Docker — it creates an empty *directory* at the
+destination. Alertmanager then starts cleanly, passes every health check, and fails only at the
+moment an alert fires, with `read url_file: is a directory`.
+
+Any endpoint that accepts an HTTP POST works: a Slack incoming webhook, PagerDuty's Events API,
+Discord, or your own handler. Alertmanager sends its own JSON envelope; if the receiver needs a
+different shape, put a relay in front of it or swap `webhook_configs` for the matching
+`slack_configs` / `pagerduty_configs` block.
+
+### Routing
+
+| Severity | Receiver | Group wait | Repeat |
+|---|---|---|---|
+| critical | `kaurax-critical` | 10s | 1h |
+| warning | `kaurax-warning` | 30s | 12h |
+
+Four inhibition rules keep one failure from producing several pages: an unscrapeable target
+suppresses every other alert for that job, a down sequencer suppresses the stall and batcher
+alerts that follow from it, an unreachable L2 suppresses the L2 stall, and any critical
+suppresses a warning about the same component.
+
+### Verifying it
+
+```bash
+./tests/check-alerting.sh
+```
+
+Validates the Prometheus config and rules, validates the routing tree, asserts that
+`severity=critical` and `severity=warning` reach the receivers they should, then starts
+Alertmanager against a throwaway HTTP sink, posts a real `KauraxSequencerDown` alert through
+the real routing tree, and asserts the sink was actually called. It runs in CI.
+
+### The gap it does not close
+
+If **Alertmanager itself** is down, Prometheus has nowhere to send the alert saying so.
+`KauraxScrapeTargetDown` covers the alertmanager job, but the notification has no route out.
+Only an external dead-man's switch closes that — a always-firing heartbeat alert routed to a
+third-party service that pages when the heartbeat *stops*. That is not configured here, and
+pretending the current setup covers it would be the same mistake as shipping rules that
+deliver nowhere.
+
+---
+
 ## 4. Running it
 
 ```bash

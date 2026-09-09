@@ -30,7 +30,7 @@ No one-step verifier. No proving VM. No trace commitments. No preimage oracle. N
 decentralized sequencing. No external audit.
 
 These are stated in the repository's README before its feature list, and the project's own
-mainnet readiness assessment is **51/100**, published with per-row evidence.
+mainnet readiness assessment is **52/100**, published with per-row evidence.
 
 ## Why fund this
 

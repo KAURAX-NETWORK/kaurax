@@ -55,6 +55,20 @@ fi
 if grep -qE '^KAURAX_DOMAIN=$' .env; then
   die "KAURAX_DOMAIN is empty in .env. Nginx needs it to build its server names."
 fi
+
+# Alertmanager reads its destination from a bind-mounted file. If that file does not exist,
+# Docker does not refuse the mount — it creates an empty *directory* at the destination.
+# Alertmanager then starts cleanly, passes every health check, and fails only at the moment
+# an alert fires, with "read url_file: is a directory". A monitoring stack that looks healthy
+# and drops alerts is the failure this whole component exists to remove, so check it here.
+WEBHOOK_FILE="infra/monitoring/alert-webhook-url"
+if [ ! -f "$WEBHOOK_FILE" ]; then
+  die "$WEBHOOK_FILE does not exist, so alerts would be dropped silently.
+  cp ${WEBHOOK_FILE}.example $WEBHOOK_FILE   # then put the real destination in it"
+fi
+if [ ! -s "$WEBHOOK_FILE" ] || grep -q 'replace-me' "$WEBHOOK_FILE"; then
+  die "$WEBHOOK_FILE still holds the example value. Alerts would POST to a host that does not exist."
+fi
 info "environment looks configured"
 
 docker compose config --quiet || die "docker-compose.yml is invalid"

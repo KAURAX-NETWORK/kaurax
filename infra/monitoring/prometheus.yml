@@ -12,6 +12,14 @@ global:
 rule_files:
   - /etc/prometheus/alerts.yml
 
+# Where firing alerts are sent. Without this block Prometheus evaluates every rule in
+# alerts.yml and delivers the result nowhere — it shows up in Prometheus's own UI and stops
+# there, which looks like alerting and is not.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 scrape_configs:
   # The compose service is `kaurax-l3`; there is no service called `kaurax-node`. Prometheus
   # resolves targets through Docker's DNS, so the old name never resolved and this job had
@@ -34,3 +42,13 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+
+  # Scraped so that `up == 0` covers it, which is what KauraxScrapeTargetDown alerts on.
+  # Note the limit of that: if Alertmanager is the thing that is down, Prometheus has
+  # nowhere to send the alert saying so. Only an external dead-man's switch closes that
+  # gap — see docs/MONITORING.md.
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+        labels:
+          component: alertmanager

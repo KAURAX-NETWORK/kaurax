@@ -160,7 +160,7 @@ report that can only be checked by its author is not a report.
 
 ## 13. Why fund this
 
-Not because KAURAX is finished — it scores **51/100** on its own mainnet readiness
+Not because KAURAX is finished — it scores **52/100** on its own mainnet readiness
 assessment, and that number is in the repository.
 
 Because the parts that are built are built correctly and tested adversarially; because the

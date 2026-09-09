@@ -209,6 +209,30 @@ services:
       - ./infra/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     expose: ["9090"]
+    depends_on: [alertmanager]
+    logging: *logging
+    networks: [kaurax]
+
+  # Prometheus evaluated every rule in alerts.yml and delivered the result nowhere. This is
+  # what turns a firing rule into a notification someone receives.
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    container_name: kaurax-alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./infra/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # The destination, as a file rather than an environment variable: it carries a token,
+      # and an environment variable would put it in `docker inspect` for anyone on the host.
+      # Create it from alert-webhook-url.example; Alertmanager will not start without it.
+      - ./infra/monitoring/alert-webhook-url:/etc/alertmanager/webhook-url:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      # Needed for the silence and unsilence links in a notification to resolve to something
+      # a person can click. Harmless if the host is only reachable over a tunnel.
+      - --web.external-url=${ALERTMANAGER_EXTERNAL_URL:-http://localhost:9093}
+    expose: ["9093"]
     logging: *logging
     networks: [kaurax]
 
@@ -235,6 +259,7 @@ volumes:
   l3-state:
   contract-deployments:
   prometheus-data:
+  alertmanager-data:
   grafana-data:
   certbot-webroot:
   certbot-certs:

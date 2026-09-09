@@ -1,0 +1,74 @@
+# KAURAX alert routing.
+#
+# Prometheus evaluates infra/monitoring/alerts.yml and sends what fires here. Until this
+# existed, it evaluated them into its own UI and nothing was delivered anywhere — which is
+# the same as having no alerts, except that it looks like having alerts.
+#
+# The destination is read from a file rather than written here, so no endpoint or token ever
+# enters the repository or `docker inspect` output. Create it from the example:
+#
+#   cp infra/monitoring/alert-webhook-url.example infra/monitoring/alert-webhook-url
+#   $EDITOR infra/monitoring/alert-webhook-url
+#
+# Alertmanager refuses to start if the file is missing. That is deliberate: a monitoring
+# stack that comes up and quietly drops every alert is worse than one that will not come up.
+
+global:
+  # How long a firing alert may go unrefreshed before it is treated as resolved. Prometheus
+  # re-sends every 15s (evaluation_interval), so this is twelve missed evaluations.
+  resolve_timeout: 3m
+
+route:
+  receiver: kaurax-warning
+  # Group by the alert and the component it names, so one failing component produces one
+  # notification rather than one per rule that noticed it.
+  group_by: [alertname, component, job]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+
+  routes:
+    # Critical means the chain has stopped or data is not reaching the L2. Wait briefly to
+    # let related alerts group, then repeat hourly until someone acts.
+    - matchers: [severity = "critical"]
+      receiver: kaurax-critical
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+
+    - matchers: [severity = "warning"]
+      receiver: kaurax-warning
+
+inhibit_rules:
+  # A target Prometheus cannot scrape makes every other alert about that target meaningless:
+  # the metrics behind them are stale or absent. Report the cause, not the symptoms.
+  - source_matchers: [alertname = "KauraxScrapeTargetDown"]
+    target_matchers: [severity =~ "critical|warning"]
+    equal: [job]
+
+  # If the sequencer is down, the block height has obviously stalled and the batcher has
+  # obviously stopped publishing. One page, not three.
+  - source_matchers: [alertname = "KauraxSequencerDown"]
+    target_matchers: [alertname =~ "KauraxBlockHeightStalled|KauraxBatcherUnhealthy|KauraxBatchStale|KauraxUnbatchedBlocksHigh"]
+
+  # The L2 being unreachable explains any settlement alert that follows from it.
+  - source_matchers: [alertname = "KauraxL2Unreachable"]
+    target_matchers: [alertname = "KauraxL2Stalled"]
+
+  # A critical alert supersedes a warning about the same component.
+  - source_matchers: [severity = "critical"]
+    target_matchers: [severity = "warning"]
+    equal: [component]
+
+receivers:
+  - name: kaurax-critical
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhook-url
+        send_resolved: true
+        max_alerts: 0
+
+  - name: kaurax-warning
+    webhook_configs:
+      - url_file: /etc/alertmanager/webhook-url
+        send_resolved: true
+        max_alerts: 0

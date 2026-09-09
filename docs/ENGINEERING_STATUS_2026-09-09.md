@@ -88,6 +88,8 @@ Each was verified to fail when it should, not only to pass.
 | `tests/dispute.ts` / `dispute.sh` | **new** — 23 checks against deployed contracts |
 | `tests/reproduce.sh` | **new** — one command, clean clone to full evidence |
 | `tests/check-kvs-fixtures.sh` | **new** — the fixture freshness gate |
+| `infra/monitoring/alertmanager.yml` | **new** — routing, severity split, four inhibition rules |
+| `tests/check-alerting.sh` | **new** — proves a real alert reaches a receiver |
 | `tests/check-doc-counts.sh` | Prose, per-suite table and score checks |
 | `tests/apps-smoke.ts` | Seeds a fresh chain instead of failing on missing state |
 | `tests/forced-inclusion.sh` | Records the node's real pid, not the subshell's |
@@ -181,6 +183,7 @@ Failures encountered and fixed during the round, listed because they were real:
 | — | Bridges, message passer, bridged token and hashing outside the coverage floor | Gate extended 5 → 13 contracts |
 | — | The KVS differential rig could not detect emulator drift | `check-kvs-fixtures.sh` |
 | — | Slither's two High findings | One real (H-4), one false positive; both now clean |
+| O-5 | Alert rules evaluated and reached nobody | Alertmanager deployed and routed; `tests/check-alerting.sh` posts a real alert through the real routing tree and asserts a receiver was called |
 
 ---
 
@@ -195,7 +198,6 @@ Failures encountered and fixed during the round, listed because they were real:
 | M-4 | No TLS on the public RPC | OPEN — blocked by the host on trial accounts |
 | L-1 | One live game per output allows mild griefing | OPEN, accepted |
 | I-1 | KAURAX's own STF is unpinned and untested against a second implementation | OPEN — M1 |
-| O-5 | Alert rules evaluate but reach nobody | **OPEN** — no `alerting:` block, no Alertmanager |
 
 ---
 
@@ -225,10 +227,12 @@ Measured against the code: [FAULT_PROOF_GAP_ANALYSIS.md](FAULT_PROOF_GAP_ANALYSI
 
 ## 9. Mainnet readiness score
 
-**51/100**, down one from 52.
+**52/100**, unchanged in total but not in composition.
 
-Not because anything regressed. Operations was scored 5/5 while its own note said alerting was
-absent; the two could not both be true, and the note was the accurate half.
+Operations went 5 → 4 → 5. It had been scored 5/5 while its own note said alerting was absent;
+the two could not both be true, so it went to 4. Alertmanager then closed the gap and it
+returned to 5. The round trip is the scorecard working: down when the claim was checked, up
+when the gap was closed.
 
 Fixing a HIGH severity bug, raising four contracts to 100% coverage, putting the dispute game
 on the devnet and closing a hole in the differential rig **moved nothing**, because none of it
@@ -250,15 +254,16 @@ about 70.
    instrumentable EVM that emits a per-instruction trace. 3–6 engineer-months. **The blocker.**
    Nothing about fault proofs can proceed until this is done.
 
-3. **Deploy an Alertmanager** — the rules already exist and evaluate; nothing delivers them.
-   Days, not months, and it is the cheapest open item on the list.
-
-4. **Move operator keys onto the signing service in the live deployment** — built and tested
+3. **Move operator keys onto the signing service in the live deployment** — built and tested
    over a real socket; switching a running chain deserves its own window. Closes M-3.
 
-5. **Commission an external audit of the settlement, bridge and dispute contracts** — closes
+4. **Commission an external audit of the settlement, bridge and dispute contracts** — closes
    H-3, and it is the only one of these that cannot be done by writing code. Ring-fence the
    budget, because it gets reallocated exactly when engineering runs long.
+
+5. **An external dead-man's switch for alerting** — Alertmanager now delivers, but if
+   Alertmanager itself is down, Prometheus has nowhere to send the alert saying so. A heartbeat
+   routed to a third-party service that pages on silence is the only thing that closes it.
 
 Explicitly **not** next: sequencer decentralisation. Distributing block production while nobody
 can prove a block wrong spreads the ability to lie rather than removing it.

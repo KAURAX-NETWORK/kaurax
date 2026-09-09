@@ -118,6 +118,6 @@ Steps 1–3 are the 18–30 engineer-month estimate in
 
 ## Self-assessed readiness
 
-**Mainnet: 51/100** ([MAINNET_READINESS.md](../MAINNET_READINESS.md)). This round removed
+**Mainnet: 52/100** ([MAINNET_READINESS.md](../MAINNET_READINESS.md)). This round removed
 operational failure modes and added measurement; it did not change the protocol's security
 ceiling, and the score should not move much for that reason.
