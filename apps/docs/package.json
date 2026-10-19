@@ -19,7 +19,7 @@
   "dependencies": {
     "@kaurax/types": "workspace:*",
     "@kaurax/ui": "workspace:*",
-    "next": "^16.3.4",
+    "next": "^16.3.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "viem": "^2.56.3"
