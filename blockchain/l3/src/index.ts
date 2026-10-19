@@ -367,6 +367,7 @@ export class KauraxNode {
             .catch(() => null);
 
     const block = await this.engine.getBlock("latest").catch(() => null);
+    const l2Spend = this.settlement.l2Spend();
 
     return serialize({
       recipient: {
@@ -387,9 +388,33 @@ export class KauraxNode {
         currentBaseFeePerGas: block?.baseFeePerGas ?? null,
       },
       nativeCurrency: this.cfg.l3.nativeCurrency,
+
+      /**
+       * What settling KAURAX costs on the L2.
+       *
+       * Reported beside fee income deliberately: publishing what a network collects
+       * without what it spends is the same error as conflating burned fees with received
+       * ones, pointed the other way.
+       *
+       * These amounts are in the L2's native wei. That is a DIFFERENT asset from KAX and
+       * the two must never be added or netted — there is no exchange rate between a
+       * valueless testnet token and the L2's gas token, and inventing one would turn two
+       * honest figures into a fabricated third.
+       */
+      l2SettlementCost: {
+        ...l2Spend,
+        unit: `wei of the ${this.cfg.l2.name} native token`,
+        sinceProcessStart: true,
+        note:
+          "Counts this process only: a restart resets it, and there is no on-chain " +
+          "aggregate to recover a historical total from. Reverted settlement " +
+          "transactions are not counted, so this understates cost when sends fail.",
+      },
+
       note:
         "KAX is a testnet gas asset with no monetary value. Amounts here are denominated " +
-        "in it and are not revenue. See docs/PROTOCOL_FEES.md.",
+        "in it and are not revenue. L2 settlement cost is in a different asset again and " +
+        "is not netted off. See docs/PROTOCOL_FEES.md.",
     });
   }
 
@@ -417,6 +442,18 @@ export class KauraxNode {
         help: "1 when KAURAX_FEE_RECIPIENT names an account to receive priority fees",
         type: "gauge",
         value: this.feeRecipient.configured === null ? 0 : 1,
+      },
+      {
+        name: "kaurax_l2_settlement_cost_wei_total",
+        help: "L2 gas spent settling KAURAX since this process started, in the L2's native wei",
+        type: "counter",
+        value: Number(this.settlement.l2Spend().costWei),
+      },
+      {
+        name: "kaurax_l2_settlement_transactions_total",
+        help: "Successful L2 settlement transactions sent since this process started",
+        type: "counter",
+        value: this.settlement.l2Spend().transactions,
       },
       {
         // Alert on configured=1 && applied=0: fees are configured to be collected and are

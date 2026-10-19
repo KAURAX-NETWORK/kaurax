@@ -101,7 +101,7 @@ is the default, so setting it would read as "fees are routed" while burning them
 
 | Surface | Gives |
 |---|---|
-| `kaurax_feeStatus` (JSON-RPC) | recipient, whether it was applied, its live balance, the current base fee |
+| `kaurax_feeStatus` (JSON-RPC) | recipient, whether it was applied, its live balance, the current base fee, **and L2 settlement cost** |
 | `GET /api/fees` | all-time split: paid by users / burned / received, with indexed-block coverage |
 | `GET /api/fees/daily?days=30` | the same split per day |
 
@@ -129,6 +129,17 @@ indexer would fix it and has not been done.
 `recipient.balanceWei` is an account balance. Anyone can send to that address and whoever
 holds the key can spend from it. It will diverge from cumulative fees received the first
 time either happens. Both numbers are published so the divergence is visible.
+
+### The cost side, in a different asset
+
+`kaurax_feeStatus.l2SettlementCost` reports what this process has spent on the L2 posting
+batches and output roots ([OPERATING_COSTS.md](OPERATING_COSTS.md) §3.1). It is published
+beside fee income on purpose: reporting what a network collects without what it spends is
+the same error as conflating burned fees with received ones, pointed the other way.
+
+**The two are never added.** Fee income is in KAX; settlement cost is in the L2's native
+token. There is no exchange rate between a valueless testnet asset and the L2's gas token,
+and inventing one would turn two honest figures into a fabricated third.
 
 ### Net revenue is not computed
 

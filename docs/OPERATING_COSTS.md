@@ -69,11 +69,44 @@ PostgreSQL index, and Prometheus retention — and none has a retention policy c
 today. 80 GB is a starting point. Budgeting a flat monthly figure indefinitely is wrong,
 and the first thing that will break the estimate is disk.
 
+### 3.1 L2 settlement cost is now measured
+
+Every batch, output root and forced-inclusion acknowledgement is an L2 transaction whose
+receipt the node already waits for. Each is recorded as `gasUsed × effectiveGasPrice` and
+reported by:
+
+| Surface | Gives |
+|---|---|
+| `kaurax_feeStatus` → `l2SettlementCost` | total and per-driver, with transaction counts |
+| metric `kaurax_l2_settlement_cost_wei_total` | total spend, for Prometheus |
+| metric `kaurax_l2_settlement_transactions_total` | how many sends it covers |
+
+The three drivers are kept apart because they scale differently, and a single total would
+hide which one is growing:
+
+- **batch** — data availability. Scales with KAURAX throughput and calldata size.
+- **output** — settlement. Scales with the proposal interval, not with usage.
+- **forced** — acknowledgement. Rare; driven by censorship attempts.
+
+Four honest limits on these numbers:
+
+1. **Process-scoped.** A restart resets them. There is no on-chain aggregate to recover a
+   historical total from, and the response reports `since` so the window is never implied.
+2. **Successful sends only.** A reverted settlement transaction still burns real gas and
+   is not counted, so the figure understates cost when sends fail.
+3. **A different asset.** These are wei of the L2's native token, not KAX. The two are
+   never added or netted: there is no exchange rate between a valueless testnet token and
+   the L2's gas token, and inventing one would turn two honest figures into a fabricated
+   third.
+4. **Not durable.** Persisting it correctly needs a store and a per-hash dedupe key. The
+   in-memory ledger refuses to count the same hash twice within a run; across runs, `since`
+   is the answer.
+
 ### Costs not included above
 
 | | |
 |---|---|
-| **L2 gas for batches and output roots** | Real, and paid in the L2's gas token. On a public L2 this scales with usage and can exceed the server cost. Not currently metered — see §5 |
+| **L2 gas for batches and output roots** | Real, and paid in the L2's gas token. On a public L2 this scales with usage and can exceed the server cost. **Now metered** — see §3.1 |
 | **L1 gas** | None directly. KAURAX settles to an L2; the L2 pays L1 |
 | **Domain** | Annual, small |
 | **Monitoring** | Self-hosted Prometheus and Grafana on the same box. No external bill, but it consumes the disk above |
@@ -101,12 +134,16 @@ whether it is viable:
 
 Stated so the gaps are not mistaken for zeroes:
 
-- **L2 gas spend is not metered.** The batcher and proposer send transactions and their
-  cost is not aggregated anywhere. This is the largest unmeasured recurring cost and the
-  most useful next thing to instrument.
+- **L2 gas spend is metered but not persisted** (§3.1). A restart resets the counter, so
+  there is still no historical total — only what the current process has spent.
+- **Reverted settlement transactions are not counted**, so cost is understated whenever a
+  send fails.
 - **No invoices are reconciled** against the estimates above.
 - **Bandwidth is not tracked** against free-tier caps.
 - **Disk growth rate is not recorded**, so the point at which 80 GB runs out is unknown.
 
-A cost model that does not measure its largest variable item is an estimate, not an
-account. This one is an estimate.
+The largest variable item is now measured per process, which is the difference between
+guessing at it and watching it. It is still not an account: the hosting figure is a market
+rate rather than a reconciled invoice, nothing is persisted across restarts, and bandwidth
+and disk growth are untracked. Treat the whole of this document as an estimate with one
+instrumented line in it.

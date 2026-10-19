@@ -27,7 +27,14 @@
     "baseFeeMaxChangeDenominator": 8,
     "elasticityMultiplier": 2,
     "minimumPriorityFeeWei": "0",
-    "l2DataFee": { "enabled": true, "scalar": 1000000, "overhead": 188 }
+    "l2DataFee": {
+      "enabled": false,
+      "status": "not-implemented",
+      "scalar": 1000000,
+      "overhead": 188,
+      "note": "KAURAX does NOT charge users for the cost of posting their data to the underlying L2. The operator absorbs it in full. This block previously read enabled: true, which was false — nothing has ever read it. The parameters are kept as a starting point for an implementation; charging a data fee changes what every transaction costs and needs its own design, tests and migration note. See docs/UPGRADE_ROADMAP.md 3.2."
+    },
+    "_implementation": "Descriptive, not load-bearing. No code reads this block. The base fee actually in force comes from the --base-fee flag the execution engine is launched with (infra/scripts/devnet/start.sh); these values record what that flag is set to."
   },
 
   "settlement": {

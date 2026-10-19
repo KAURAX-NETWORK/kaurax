@@ -41,40 +41,34 @@ New in this round: [UPGRADE_AUDIT.md](UPGRADE_AUDIT.md),
 | Failure to route fees is visible | metric `kaurax_fee_recipient_applied`; `problem` string |
 | Adoption can be measured excluding faucet grants, self-transfers and failures | `GET /api/adoption` |
 | Fee routing demonstrated end to end on a devnet | `./tests/acceptance.sh` — 51 checks, 0 failed |
+| L2 settlement cost metered per driver (batch / output / forced) | `kaurax_feeStatus.l2SettlementCost`; `l2-spend.test.ts`, 11 tests |
+| The `l2DataFee` config no longer claims `enabled: true` for something nothing reads | `blockchain/chain/config/*.json` |
+| Three critical dependency advisories cleared | `pnpm audit --audit-level critical` passes |
 
-Both pre-existing suites stayed green throughout: **385 Solidity**, **203 node**. No test
+Both pre-existing suites stayed green throughout: **385 Solidity**, **214 node**. No test
 was skipped, weakened or deleted.
 
 ---
 
 ## 3. Next, in dependency order
 
-### 3.1 Meter L2 gas spend — *highest value, small*
+### 3.1 Persist the L2 cost ledger — *small*
 
-The batcher and proposer pay real gas on the L2 and **nothing records how much**. It is
-the largest unmeasured recurring cost ([OPERATING_COSTS.md](OPERATING_COSTS.md) §5), and
-without it no net-cost statement is possible.
+Settlement cost is now measured (`kaurax_feeStatus.l2SettlementCost`) but held in memory,
+so a restart resets it and there is still no historical total. Persisting it needs a store
+and a per-hash dedupe key so a replay cannot double-count. Reverted sends are also not
+counted and should be, under their own heading — a failed send burns real gas.
 
-Shape: accumulate `gasUsed × effectiveGasPrice` per batch and per output-root transaction
-in `Batcher` and `Proposer`, expose as counters, surface on `/api/fees`. No protocol
-change, no new trust.
+### 3.2 Decide whether to charge an L2 data fee — *design before code*
 
-### 3.2 Decide the `l2DataFee` question — *design before code*
+The `l2DataFee` block no longer claims to be enabled: both chain configs now read
+`enabled: false`, `status: "not-implemented"`, and say in the file that the operator
+absorbs the full cost of posting batches. That removes the false claim; it does not make
+the decision.
 
-`blockchain/chain/config/testnet.json` specifies an L2 data fee with a scalar and an
-overhead, and **nothing reads it** ([UPGRADE_AUDIT.md](UPGRADE_AUDIT.md) §3.3). Today the
-operator absorbs the entire cost of posting batches.
-
-Two defensible outcomes, and the current state is neither:
-
-- **Implement it.** Charging users for data availability is what OP Stack chains do. It
-  changes what every transaction costs and needs its own design, tests and a migration
-  note.
-- **Delete it from the config** and state in the documentation that KAURAX does not charge
-  a data fee.
-
-Leaving a specified-but-unread fee block in a config file whose sibling keys are live is
-the worst of the three, because it reads as implemented.
+Charging users for data availability is what OP Stack chains do, and with §3.1 in place
+there is now a measured cost to base it on. It changes what every transaction costs, so it
+needs its own design, tests and a migration note — not a config flip.
 
 ### 3.3 Move the fee recipient behind a multisig — *before any value accrues*
 
