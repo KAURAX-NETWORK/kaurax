@@ -45,7 +45,7 @@ about fifteen minutes: [docs/REPRODUCIBLE_TESTNET_DEMO.md](docs/REPRODUCIBLE_TES
 | **Governance** | Every privileged role held by a 2-of-3 multisig or a 1-hour timelock | `Governance.t.sol`, `TimelockSelfAdmin.t.sol` |
 | **Wallet and CLI** | Real signing, encrypted keys, faucet, explorer, indexed history | `tests/e2e-testnet.sh` |
 | **Alerting** | Rules route by severity to a real destination; a deploy without one is refused | `tests/check-alerting.sh` |
-| **Tests** | 385 contract · 186 node · 12 live end-to-end | `forge test`, `pnpm test` |
+| **Tests** | 385 contract · 203 node · 12 live end-to-end | `forge test`, `pnpm test` |
 
 ### 🧪 EXPERIMENTAL — real code, deliberately not load-bearing
 
@@ -161,6 +161,8 @@ docs/                  65 documents, rendered at kaurax.network/docs
 | [Dispute game](docs/DISPUTE_GAME.md) | Bonds, bisection, and why it is not a fault proof |
 | [Fault proof roadmap](docs/FAULT_PROOF_ROADMAP.md) | The largest open problem |
 | [Security review](docs/SECURITY_REVIEW.md) | Three HIGH findings, all open |
+| [Protocol fees and treasury](docs/PROTOCOL_FEES.md) | Where a gas fee goes — and why most of it is burned |
+| [Operating costs](docs/OPERATING_COSTS.md) · [Sustainability](docs/SUSTAINABILITY.md) | What it costs, and what is not measured |
 | [Running a node](docs/TESTNET.md) | Every command |
 | [Roadmap](docs/ROADMAP.md) · [Funding](docs/FUNDING.md) | Where this goes next |
 

@@ -25,6 +25,7 @@ import type {DataAvailabilityInterface} from "./settlement/types.js";
 import {RpcServer, type KauraxRpcHandlers} from "./rpc/server.js";
 import {WithdrawalIndex} from "./withdrawals.js";
 import {ForcedInclusion} from "./forced.js";
+import {applyFeeRecipient, type FeeRecipientStatus} from "./fees/recipient.js";
 import {MetricsServer} from "./metrics.js";
 import {createLogger, setLogLevel} from "./log.js";
 
@@ -47,6 +48,12 @@ export class KauraxNode {
   readonly proposer: Proposer;
   readonly withdrawals: WithdrawalIndex;
   readonly forced: ForcedInclusion;
+
+  /**
+   * Resolved once at startup, when the engine is up and before the first block is sealed,
+   * so no block is ever produced with an unknown fee destination.
+   */
+  private feeRecipient: FeeRecipientStatus = {configured: null, active: null, applied: false, problem: null};
 
   private rpc: RpcServer | null = null;
   private metrics: MetricsServer | null = null;
@@ -89,33 +96,38 @@ export class KauraxNode {
       );
     }
 
-    // 2. Operator identities. Resolved before anything that might need to sign, so a
+    // 2. Fee destination. Before the sequencer produces anything, so every KAURAX block
+    //    has a known coinbase and the accounting in docs/PROTOCOL_FEES.md holds from the
+    //    first block of the run rather than from an unrecorded moment partway through.
+    this.feeRecipient = await applyFeeRecipient(this.engine, this.cfg.fees.recipient);
+
+    // 3. Operator identities. Resolved before anything that might need to sign, so a
     //    missing key or an unreachable signing service stops startup rather than a batch.
     await this.settlement.connectSigners();
 
-    // 3. Settlement target. Verified before any block is produced.
+    // 4. Settlement target. Verified before any block is produced.
     await this.settlement.verify();
     await this.assertPredeploys();
 
-    // 4. Deposit derivation, so the first block can already carry deposits.
+    // 5. Deposit derivation, so the first block can already carry deposits.
     await this.derivation.init(this.cfg.derivationFromL2Block);
     this.derivation.start();
 
-    // 5. Sequencing.
+    // 6. Sequencing.
     await this.sequencer.start();
 
-    // 6. Forced-inclusion acknowledgement. Started right after sequencing, because while
+    // 7. Forced-inclusion acknowledgement. Started right after sequencing, because while
     // an overdue forced transaction goes unacknowledged the output oracle rejects every
     // proposal — a correctly behaving sequencer must not halt its own settlement.
     await this.forced.init();
     this.forced.start();
 
-    // 7. Batching and proposing.
+    // 8. Batching and proposing.
     await this.batcher.init();
     this.batcher.start();
     this.proposer.start();
 
-    // 8. Public interfaces.
+    // 9. Public interfaces.
     this.rpc = new RpcServer({
       cfg: this.cfg,
       engine: this.engine,
@@ -173,6 +185,7 @@ export class KauraxNode {
       kaurax_forcedInclusionStatus: async () => this.forcedInclusionStatus(),
       kaurax_settlementStatus: async () => this.settlementStatus(),
       kaurax_networkDescriptor: async () => networkDescriptor(this.cfg),
+      kaurax_feeStatus: async () => this.feeStatus(),
       kaurax_withdrawalProof: async (params) => {
         const hash = params[0];
         if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) {
@@ -335,6 +348,51 @@ export class KauraxNode {
     });
   }
 
+  /**
+   * Where gas fees go, and how much has reached there.
+   *
+   * The balance is the recipient's live account balance, which is NOT the same as fees
+   * collected: anyone can send to that address and an operator can spend from it. The
+   * cumulative priority fee is a separate figure the indexer computes from receipts
+   * (`/api/fees` on the API), and this method deliberately does not guess at it.
+   */
+  async feeStatus(): Promise<unknown> {
+    const recipient = this.feeRecipient.active ?? this.feeRecipient.configured;
+    const balanceWei =
+      recipient === null
+        ? null
+        : await this.engine
+            .request<Hex>("eth_getBalance", [recipient, "latest"])
+            .then((hex) => BigInt(hex))
+            .catch(() => null);
+
+    const block = await this.engine.getBlock("latest").catch(() => null);
+
+    return serialize({
+      recipient: {
+        configured: this.feeRecipient.configured,
+        active: this.feeRecipient.active,
+        applied: this.feeRecipient.applied,
+        problem: this.feeRecipient.problem,
+        balanceWei,
+      },
+      model: {
+        // Stated here rather than only in documentation, because a caller reading this
+        // method is exactly the caller about to publish a revenue number.
+        baseFee: "burned (EIP-1559); no address receives it and no setting can redirect it",
+        priorityFee:
+          this.feeRecipient.applied
+            ? "credited to recipient.active"
+            : "credited to the engine coinbase, which is not a KAURAX-controlled account",
+        currentBaseFeePerGas: block?.baseFeePerGas ?? null,
+      },
+      nativeCurrency: this.cfg.l3.nativeCurrency,
+      note:
+        "KAX is a testnet gas asset with no monetary value. Amounts here are denominated " +
+        "in it and are not revenue. See docs/PROTOCOL_FEES.md.",
+    });
+  }
+
   private async metricSeries(): Promise<Array<{name: string; help: string; type: string; value: number}>> {
     const seq = this.sequencer.status();
     const batch = this.batcher.status();
@@ -354,6 +412,20 @@ export class KauraxNode {
       {name: "kaurax_derivation_queued", help: "Deposits derived but not yet included", type: "gauge", value: derivation.queued},
       {name: "kaurax_rpc_requests_total", help: "JSON-RPC requests served", type: "counter", value: rpcStats.requests},
       {name: "kaurax_rpc_errors_total", help: "JSON-RPC requests answered with an error", type: "counter", value: rpcStats.errors},
+      {
+        name: "kaurax_fee_recipient_configured",
+        help: "1 when KAURAX_FEE_RECIPIENT names an account to receive priority fees",
+        type: "gauge",
+        value: this.feeRecipient.configured === null ? 0 : 1,
+      },
+      {
+        // Alert on configured=1 && applied=0: fees are configured to be collected and are
+        // not being collected, which no other signal makes visible.
+        name: "kaurax_fee_recipient_applied",
+        help: "1 when the execution engine confirms the configured fee recipient as its coinbase",
+        type: "gauge",
+        value: this.feeRecipient.applied ? 1 : 0,
+      },
       {name: "kaurax_wal_pending_blocks", help: "Sealed blocks durably logged but not yet confirmed on the L2", type: "gauge", value: seq.walPendingBlocks},
       {name: "kaurax_forced_pending", help: "Forced transactions seen but not yet acknowledged", type: "gauge", value: forced.pending},
       {name: "kaurax_forced_overdue", help: "1 when a forced transaction is overdue and output proposals are blocked", type: "gauge", value: forced.overdue ? 1 : 0},

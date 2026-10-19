@@ -45,11 +45,11 @@ number.
 
 ## Node and services — `pnpm test`
 
-**186 passed · 0 failed · 29 turbo tasks**
+**203 passed · 0 failed · 29 turbo tasks**
 
 | Package | Tests | Covers |
 |---|---|---|
-| `@kaurax/l3` | 85 | WAL recovery, derivation checkpoint, L2 reorgs, signing seam, Merkle, batch encoding, settlement hashing, **batch completeness** |
+| `@kaurax/l3` | 102 | WAL recovery, derivation checkpoint, L2 reorgs, signing seam, Merkle, batch encoding, settlement hashing, **batch completeness**, **gas fee split**, **fee recipient** |
 | `@kaurax/api` | 35 | Config validation, route behaviour, bounded health probes |
 | `@kaurax/kvs` | 29 | Reference emulator: machine semantics and commitment tree |
 | `@kaurax/indexer` | 16 | Log decoding, token metadata |
@@ -63,7 +63,7 @@ of them in order from a clean clone, and CI runs the same set on a fresh runner.
 
 | Suite | Checks | Covers |
 |---|---|---|
-| `tests/acceptance.sh` | 47 | Execution, batching, **data availability by reconstruction**, withdrawal proof, replay protection |
+| `tests/acceptance.sh` | 51 | Execution, batching, **data availability by reconstruction**, withdrawal proof, replay protection, **gas fees reaching the configured recipient** |
 | `tests/apps-smoke.sh` | 45 | AMM quoting and liquidity, names, launchpad — seeds a fresh chain rather than assuming prior state |
 | `tests/dispute.sh` | 23 | **Dispute initiation, bisection, the finalization interlock, output deletion, bond settlement** — against deployed contracts, with no guardian involved |
 | `tests/forced-inclusion.sh` | — | Overdue forced transaction halts settlement |
@@ -102,9 +102,9 @@ discloses its own trust assumptions.
 | | |
 |---|---|
 | Solidity | **385** |
-| Node and services | **186** |
+| Node and services | **203** |
 | Live end-to-end | **12** |
-| **Total automated** | **583** |
+| **Total automated** | **600** |
 
 A count is evidence of coverage, not of correctness. The adversarial suites matter more than
 the total: they use real attacker contracts rather than asserting intent.

@@ -18,7 +18,7 @@ that removes that multisig from the security model.
 
 ## What exists
 
-583 automated tests: 385 Solidity, 186 node and services, 12 live end-to-end.
+600 automated tests: 385 Solidity, 203 node and services, 12 live end-to-end.
 
 Verified rather than asserted — data availability by rebuilding a signed transaction from L2
 calldata alone; forced inclusion by forcing a transaction on a live chain, watching
