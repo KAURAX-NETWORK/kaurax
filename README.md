@@ -76,12 +76,23 @@ The full scorecard gives STATUS, EVIDENCE and REMAINING WORK per category:
 
 ## Try it
 
+> **The public RPC and API are not currently served.** `https://kaurax.network/rpc` and
+> `/api/*` do not answer — the ten frontends are static on Vercel and are up, but the node,
+> API and indexer need a persistent host and none is running
+> ([docs/OPERATING_COSTS.md](docs/OPERATING_COSTS.md) §1). The `rpc.` and `api.` subdomains
+> the nginx config expects do not resolve either.
+>
+> **Everything below runs against a local devnet**, which is the configuration every claim
+> in this README is demonstrated against.
+
 ```bash
 pnpm install
 pnpm turbo run build --filter=@kaurax/cli
 
-export KAURAX_RPC_URL=https://kaurax.network/rpc
-export KAURAX_API_URL=https://kaurax.network
+./infra/scripts/devnet/start.sh        # L1 + L2 stand-ins + KAURAX, ~2 minutes
+
+export KAURAX_RPC_URL=http://127.0.0.1:8420
+export KAURAX_API_URL=http://127.0.0.1:4000
 export KAURAX_PASSPHRASE='choose-something'
 
 pnpm kaurax wallet create mykey
@@ -99,13 +110,18 @@ pnpm --filter @kaurax/cli exec npm link    # then: kaurax network status
 
 ### MetaMask
 
+Against the local devnet started above:
+
 ```
-Network name     KAURAX Testnet
-RPC URL          https://kaurax.network/rpc
+Network name     KAURAX Devnet
+RPC URL          http://127.0.0.1:8420
 Chain ID         8420
 Currency symbol  KAX
-Explorer         https://kaurax.network/explorer
+Explorer         http://127.0.0.1:3000
 ```
+
+There is no public RPC to point a wallet at today. When a host is running, the same
+settings apply with its address substituted.
 
 ### Run the whole thing locally
 

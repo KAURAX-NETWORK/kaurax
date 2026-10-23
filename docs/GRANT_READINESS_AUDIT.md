@@ -16,7 +16,7 @@ Re-run at audit time, not copied from an earlier document.
 |---|---|---|
 | Solidity tests | `forge test` | **405 passed**, 0 failed, 23 suites |
 | Node / service tests | `pnpm test` | **214 passed**, 26/29 turbo tasks |
-| Live end-to-end | `tests/e2e-testnet.sh` | **12 passed** against the public testnet |
+| Live end-to-end | `tests/e2e-testnet.sh` | **12 passed** against a running devnet; there is no public endpoint to run them against today |
 | Types | `pnpm typecheck` | 25/25 |
 | Builds | `pnpm build` | 19/19 |
 | Formatting | `forge fmt --check` | clean |
@@ -152,7 +152,7 @@ Conflating these is the most common way a project overstates itself, so they are
 
 | | Status | Basis |
 |---|---|---|
-| **PUBLIC TESTNET** | ✅ **Ready — and live** | Chain producing blocks; 10 apps under one domain; 529 tests; 12 live end-to-end checks; RPC public |
+| **PUBLIC TESTNET** | ⚠️ **Frontends only** | The 10 apps are deployed and reachable under one domain. The **RPC, API and indexer are not served** — they need a persistent host and none is running. The chain runs on a local devnet, where the end-to-end checks pass |
 | **GRANT READY** | ✅ **Ready** | Trust model, open findings, reproducible builds, milestones with external acceptance tests, budget in engineer-months, no fabricated metrics. 11/12 checklist items; the twelfth **is** the request |
 | **MAINNET READY** | ❌ **Not ready — 52/100** | No fault proofs, no verifier, no proving VM, no external audit, one sequencer, guardian-decided disputes |
 

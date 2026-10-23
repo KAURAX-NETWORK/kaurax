@@ -10,7 +10,7 @@ node examples/hello-world/deploy.mjs
 Against the public testnet:
 
 ```bash
-KAURAX_RPC_URL=https://kaurax.network/rpc \
+KAURAX_RPC_URL=http://127.0.0.1:8420 \
 PRIVATE_KEY=0xyour-key \
 node examples/hello-world/deploy.mjs
 ```

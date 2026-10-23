@@ -24,7 +24,7 @@ one.
 
 | Claim | How to check it yourself |
 |---|---|
-| The chain produces blocks | `curl` the public RPC at https://kaurax.network/rpc |
+| The chain produces blocks | `./infra/scripts/devnet/start.sh`, then `curl http://127.0.0.1:8420` — **the public RPC is not currently served** |
 | Data availability is real | `tests/acceptance.ts` rebuilds a signed transaction from L2 calldata alone |
 | Forced inclusion works | Force a transaction; settlement halts until it is included, then resumes |
 | The dispute game runs | Play one on the testnet; bonds, bisection and resolution execute |

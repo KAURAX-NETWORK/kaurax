@@ -6,7 +6,7 @@
 | **Category** | Ethereum L3 / rollup infrastructure |
 | **Status** | Live experimental **testnet** |
 | **Repository** | https://github.com/KAURAX-NETWORK/kaurax (MIT) |
-| **Testnet** | https://kaurax.network |
+| **Frontends** | https://kaurax.network (static; the RPC and API behind them are not currently served) |
 | **Ask** | Fund the move from guardian-dependent dispute resolution to trustless fault proofs |
 
 ## In one paragraph

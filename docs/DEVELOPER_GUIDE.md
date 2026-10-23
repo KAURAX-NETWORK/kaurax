@@ -8,13 +8,23 @@ Deploying to KAURAX and building on it. For running a node, see
 
 ## 1. Connect
 
-| | Public testnet | Local devnet |
+> **The public endpoints are not currently served.** `kaurax.network/rpc` and `/api/*` do
+> not answer, and `rpc.kaurax.network` / `api.kaurax.network` do not resolve. The ten
+> frontends are static on Vercel and are up; the node, API and indexer need a persistent
+> host and none is running ([OPERATING_COSTS.md](OPERATING_COSTS.md) §1).
+>
+> Use the local devnet: `./infra/scripts/devnet/start.sh`.
+
+| | Local devnet | Public testnet |
 |---|---|---|
-| RPC | `https://kaurax.network/rpc` | `http://127.0.0.1:8420` |
-| WebSocket | — | `ws://127.0.0.1:8421` |
-| Chain ID | **8420** | 8420 |
-| Symbol | KAX (18 decimals) | KAX |
-| Explorer | `https://kaurax.network/explorer` | `http://127.0.0.1:3000` |
+| RPC | `http://127.0.0.1:8420` | not served |
+| API | `http://127.0.0.1:4000` | not served |
+| WebSocket | `ws://127.0.0.1:8421` | not served |
+| Chain ID | 8420 | — |
+| Symbol | KAX (18 decimals) | — |
+| Explorer | `http://127.0.0.1:3000` | `https://kaurax.network/explorer` (frontend only) |
+
+The explorer frontend loads but cannot show chain data without an API to read from.
 
 **KAX has no monetary value.** It is a testnet gas token.
 
@@ -25,7 +35,7 @@ funded accounts.
 ## 2. Get gas
 
 ```bash
-curl -s -X POST https://kaurax.network/api/faucet \
+curl -s -X POST http://127.0.0.1:4000/api/faucet \
   -H 'content-type: application/json' -d '{"address":"0xYourAddress"}'
 ```
 
@@ -40,8 +50,8 @@ unchanged; only the RPC URL and chain ID differ.
 **Foundry** — a complete project is in [`examples/basic-contract`](../examples/basic-contract):
 
 ```bash
-forge create --rpc-url https://kaurax.network/rpc --private-key $PK src/Vault.sol:Vault
-forge script script/Deploy.s.sol --rpc-url https://kaurax.network/rpc --broadcast
+forge create --rpc-url http://127.0.0.1:8420 --private-key $PK src/Vault.sol:Vault
+forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8420 --broadcast
 ```
 
 `forge script` prints simulated addresses even when the broadcast reverts. Read the broadcast
@@ -57,7 +67,7 @@ deploys, reads, writes and waits for a receipt in about 60 lines.
 
 ```js
 networks: {
-  kaurax: {url: "https://kaurax.network/rpc", chainId: 8420, accounts: [process.env.PK]},
+  kaurax: {url: "http://127.0.0.1:8420", chainId: 8420, accounts: [process.env.PK]},
 }
 ```
 

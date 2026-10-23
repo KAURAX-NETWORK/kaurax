@@ -1,5 +1,9 @@
 # KAURAX — Testnet Operations
 
+> **No public host is running today.** The commands below address one, and
+> `kaurax.network/rpc` and `/api/*` do not currently answer. They are the procedure for
+> when a host exists, not a description of one that does.
+
 Running the public testnet. Everything here was executed, including the failures.
 
 **Host:** UpCloud, `87.58.152.42`. **Access:** `ssh -i ~/.ssh/kaurax_deploy kaurax@<host>`.

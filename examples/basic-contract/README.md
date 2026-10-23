@@ -10,12 +10,12 @@ forge test          # 6 tests, including a re-entrancy attack and a fuzz propert
 ## Deploy
 
 ```bash
-export KAURAX_RPC_URL=https://kaurax.network/rpc      # or http://127.0.0.1:8420
+export KAURAX_RPC_URL=http://127.0.0.1:8420          # the public RPC is not served
 export PRIVATE_KEY=0xyour-key
 forge script script/Deploy.s.sol --rpc-url $KAURAX_RPC_URL --broadcast
 ```
 
-Get gas first: `curl -s -X POST https://kaurax.network/api/faucet -H 'content-type: application/json' -d '{"address":"0xYou"}'`
+Get gas first: `curl -s -X POST http://127.0.0.1:4000/api/faucet -H 'content-type: application/json' -d '{"address":"0xYou"}'`
 
 ## What `Vault` is for
 
