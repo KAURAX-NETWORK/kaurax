@@ -25,6 +25,7 @@ import {batchInboxAbi, outputOracleAbi, portalAbi} from "./abi.js";
 import {createSigners} from "../signer/index.js";
 import type {KauraxSigner, SignerRole} from "../signer/index.js";
 import type {BatchStatus, DaCommitment, L1Finality, SettlementInterface} from "./types.js";
+import {L2SpendLedger, type L2SpendTotals} from "../fees/l2-spend.js";
 import {createLogger} from "../log.js";
 
 export class SettlementNotDeployedError extends Error {
@@ -185,6 +186,7 @@ export class L2SettlementAdapter implements SettlementInterface {
     if (receipt.status !== "success") {
       throw new Error(`Batch submission reverted on ${this.l2Name} (tx ${txHash})`);
     }
+    this.recordSpend("batch", txHash, receipt);
 
     return {
       hash: keccak256(hex),
@@ -273,6 +275,7 @@ export class L2SettlementAdapter implements SettlementInterface {
     if (receipt.status !== "success") {
       throw new Error(`Output proposal reverted on ${this.l2Name} (tx ${txHash})`);
     }
+    this.recordSpend("output", txHash, receipt);
     return txHash as Hex;
   }
 
@@ -283,6 +286,13 @@ export class L2SettlementAdapter implements SettlementInterface {
    * every proposal would add a round trip to the chain's critical path for a value that
    * cannot change.
    */
+  /**
+   * What this process has spent on the L2 to settle. Every send below records its
+   * receipt here, so the cost of running KAURAX is measured at the only place that knows
+   * it. See docs/OPERATING_COSTS.md, which called this the largest unmeasured cost.
+   */
+  private readonly spend = new L2SpendLedger();
+
   private cachedProposerBond: bigint | null = null;
 
   async proposerBond(): Promise<bigint> {
@@ -331,6 +341,7 @@ export class L2SettlementAdapter implements SettlementInterface {
     if (receipt.status !== "success") {
       throw new Error(`Forced-transaction acknowledgement reverted on ${this.l2Name} (tx ${txHash})`);
     }
+    this.recordSpend("forced", txHash, receipt);
     return txHash as Hex;
   }
 
@@ -443,4 +454,44 @@ export class L2SettlementAdapter implements SettlementInterface {
   get publicClient(): PublicClient {
     return this.l2;
   }
+
+  /**
+   * Record one settled L2 transaction's cost.
+   *
+   * A reverted transaction never reaches here — the callers throw first — so the ledger
+   * holds successful settlement only. Gas for a reverted send is still really spent, and
+   * not counting it understates cost; it is left out because a revert is an incident
+   * rather than a running cost, and `docs/OPERATING_COSTS.md` says so rather than letting
+   * the omission pass unstated.
+   *
+   * Never throws. A cost figure must not be able to take down settlement.
+   */
+  private recordSpend(
+    kind: "batch" | "output" | "forced",
+    txHash: string,
+    receipt: {gasUsed: bigint; effectiveGasPrice?: bigint | null},
+  ): void {
+    try {
+      const price = receipt.effectiveGasPrice ?? null;
+      if (price === null) return;
+      this.spend.record(kind, txHash, receipt.gasUsed, price);
+    } catch (err) {
+      this.log.warn("could not record L2 settlement cost", {
+        kind,
+        txHash,
+        error: (err as Error).message,
+      });
+    }
+  }
+
+  /**
+   * L2 settlement cost since this process started.
+   *
+   * Denominated in the L2's native wei, which is NOT KAX and must never be added to one.
+   * A restart resets it; `since` reports when counting began.
+   */
+  l2Spend(): L2SpendTotals {
+    return this.spend.totals();
+  }
+
 }

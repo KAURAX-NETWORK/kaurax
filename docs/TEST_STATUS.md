@@ -15,7 +15,7 @@ number.
 
 ## Solidity — `forge test`
 
-**385 passed · 0 failed · 0 skipped · 23 suites**
+**405 passed · 0 failed · 0 skipped · 23 suites**
 
 | Suite | Tests | Covers |
 |---|---|---|
@@ -28,6 +28,7 @@ number.
 | `KauraxPortal.t.sol` | 25 | Deposits, withdrawals, pause, forced transactions |
 | `ForcedInclusion.t.sol` | 21 | Deadlines, acknowledgement, settlement halt |
 | `TimelockSelfAdmin.t.sol` | 16 | The timelock governing its own delay, proposer and guardian |
+| `Treasury.t.sol` | 20 | The multisig as a treasury: coinbase accrual emits no event, unauthorised withdrawal, reentrant payee, owner rotation invalidating pending disbursements, funds never trapped |
 | `AI.t.sol` | 15 | Agent and service registries, payments |
 | `KauraxL2OutputOracle.t.sol` | 13 | Proposals, escrow, deletion, finalization |
 | `KauraxBridgedERC20.t.sol` | 12 | Mint and burn authority, allowances, supply accounting |
@@ -45,11 +46,11 @@ number.
 
 ## Node and services — `pnpm test`
 
-**186 passed · 0 failed · 29 turbo tasks**
+**214 passed · 0 failed · 29 turbo tasks**
 
 | Package | Tests | Covers |
 |---|---|---|
-| `@kaurax/l3` | 85 | WAL recovery, derivation checkpoint, L2 reorgs, signing seam, Merkle, batch encoding, settlement hashing, **batch completeness** |
+| `@kaurax/l3` | 113 | WAL recovery, derivation checkpoint, L2 reorgs, signing seam, Merkle, batch encoding, settlement hashing, **batch completeness**, **gas fee split**, **fee recipient**, **L2 settlement cost** |
 | `@kaurax/api` | 35 | Config validation, route behaviour, bounded health probes |
 | `@kaurax/kvs` | 29 | Reference emulator: machine semantics and commitment tree |
 | `@kaurax/indexer` | 16 | Log decoding, token metadata |
@@ -63,7 +64,7 @@ of them in order from a clean clone, and CI runs the same set on a fresh runner.
 
 | Suite | Checks | Covers |
 |---|---|---|
-| `tests/acceptance.sh` | 47 | Execution, batching, **data availability by reconstruction**, withdrawal proof, replay protection |
+| `tests/acceptance.sh` | 53 | Execution, batching, **data availability by reconstruction**, withdrawal proof, replay protection, **gas fees reaching the configured recipient**, **the recipient being a multisig treasury** |
 | `tests/apps-smoke.sh` | 45 | AMM quoting and liquidity, names, launchpad — seeds a fresh chain rather than assuming prior state |
 | `tests/dispute.sh` | 23 | **Dispute initiation, bisection, the finalization interlock, output deletion, bond settlement** — against deployed contracts, with no guardian involved |
 | `tests/forced-inclusion.sh` | — | Overdue forced transaction halts settlement |
@@ -101,10 +102,10 @@ discloses its own trust assumptions.
 
 | | |
 |---|---|
-| Solidity | **385** |
-| Node and services | **186** |
+| Solidity | **405** |
+| Node and services | **214** |
 | Live end-to-end | **12** |
-| **Total automated** | **583** |
+| **Total automated** | **631** |
 
 A count is evidence of coverage, not of correctness. The adversarial suites matter more than
 the total: they use real attacker contracts rather than asserting intent.

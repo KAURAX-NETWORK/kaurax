@@ -1,5 +1,10 @@
 # Running a KAURAX node
 
+> **The public RPC and API are not currently served.** `kaurax.network/rpc` and `/api/*`
+> do not answer, and `rpc.kaurax.network` / `api.kaurax.network` do not resolve. The ten
+> frontends are static on Vercel and are up; the node, API and indexer need a persistent
+> host and none is running ([OPERATING_COSTS.md](OPERATING_COSTS.md) §1). Every command
+> below is written against the local devnet.
 Every command here was run. Where output is shown, it is real output.
 
 ---
@@ -150,8 +155,8 @@ The node then never holds a key. See `docs/key-management.md`.
 
 ```bash
 pnpm --filter @kaurax/cli build
-export KAURAX_RPC_URL=https://kaurax.network/rpc
-export KAURAX_API_URL=https://kaurax.network
+export KAURAX_RPC_URL=http://127.0.0.1:8420
+export KAURAX_API_URL=http://127.0.0.1:4000
 
 kaurax wallet create mykey          # KAURAX_PASSPHRASE unlocks it
 kaurax faucet                       # 100 KAX, cooldown per address and per IP
@@ -182,10 +187,10 @@ right for a token with no value and wrong for one with any.
 
 ```
 Network name     KAURAX Testnet
-RPC URL          https://kaurax.network/rpc
+RPC URL          http://127.0.0.1:8420
 Chain ID         8420
 Currency symbol  KAX
-Explorer         https://kaurax.network/explorer
+Explorer         http://127.0.0.1:3000
 ```
 
 `kaurax wallet add` prints these from the live network.
@@ -195,8 +200,8 @@ Explorer         https://kaurax.network/explorer
 ## Health, logs, monitoring
 
 ```bash
-curl https://kaurax.network/api/health          # rpc, database, indexer — 200 or 503
-curl https://kaurax.network/api/health/ready    # readiness; 503 while draining
+curl http://127.0.0.1:4000/api/health          # rpc, database, indexer — 200 or 503
+curl http://127.0.0.1:4000/api/health/ready    # readiness; 503 while draining
 curl http://127.0.0.1:7300/metrics              # Prometheus, node-internal
 
 docker compose logs -f kaurax-l3

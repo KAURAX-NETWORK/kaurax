@@ -1,5 +1,8 @@
 # KAURAX examples
 
+> **The public RPC and API are not currently served** — no persistent host is running.
+> These examples run against a local devnet: `./infra/scripts/devnet/start.sh`.
+
 Three examples, in the order a new developer should meet them. Each is runnable against the
 local devnet or the public testnet — only `KAURAX_RPC_URL` changes.
 
@@ -13,18 +16,18 @@ local devnet or the public testnet — only `KAURAX_RPC_URL` changes.
 
 | | Local devnet | Public testnet |
 |---|---|---|
-| RPC | `http://127.0.0.1:8420` | `https://kaurax.network/rpc` |
+| RPC | `http://127.0.0.1:8420` | not served — see note below |
 | Chain ID | 8420 | 8420 |
 | Symbol | KAX | KAX |
 | Explorer | `http://127.0.0.1:3000` | `https://kaurax.network/explorer` |
-| Faucet | funded at genesis | `POST https://kaurax.network/api/faucet` |
+| Faucet | funded at genesis | not served — see note below |
 
 **KAX is a testnet gas token with no monetary value.**
 
 ## Getting gas
 
 ```bash
-curl -s -X POST https://kaurax.network/api/faucet \
+curl -s -X POST http://127.0.0.1:4000/api/faucet \
   -H 'content-type: application/json' \
   -d '{"address":"0xYourAddress"}'
 ```

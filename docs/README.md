@@ -110,7 +110,9 @@ Layer-1 and has no security of its own.
   everyone — but ordering is centralized.
 - **No audits.** Nothing here has been reviewed by anyone outside the project.
 - **KAX has no monetary value.** It is a testnet gas asset. No token sale, no tokenomics.
-- **A public testnet is running** at [kaurax.network](https://kaurax.network). It is
+- **The public frontends are deployed** at [kaurax.network](https://kaurax.network), but
+  the public **RPC and API are not served** — no persistent host is running, so use the
+  local devnet. The chain itself is
   experimental. Do not hold value on it.
 
 ## A note on file names

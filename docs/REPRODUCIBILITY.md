@@ -96,7 +96,7 @@ signed transaction without asking KAURAX for anything.
 ```bash
 cd blockchain/contracts
 forge build
-forge test                    # 385 passed, 23 suites
+forge test                    # 405 passed, 23 suites
 forge fmt --check
 ```
 
@@ -112,8 +112,8 @@ Against the local devnet or the public testnet — only the URLs differ.
 ```bash
 pnpm --filter @kaurax/cli build
 
-export KAURAX_RPC_URL=https://kaurax.network/rpc
-export KAURAX_API_URL=https://kaurax.network
+export KAURAX_RPC_URL=http://127.0.0.1:8420
+export KAURAX_API_URL=http://127.0.0.1:4000
 export KAURAX_PASSPHRASE='choose-something'
 
 pnpm kaurax network status

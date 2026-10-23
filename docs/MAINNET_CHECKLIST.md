@@ -70,11 +70,11 @@ that would be audited exists.
 
 | Gate | State |
 |---|---|
-| Unit tests | ✅ 385 Solidity, 186 node |
+| Unit tests | ✅ 405 Solidity, 214 node |
 | Adversarial tests | ✅ 44 integration, 46 contract-level |
 | Property / fuzz | ✅ 10 KVS properties, 2 game fuzz at 256 runs, 5 Merkle |
 | Differential | ✅ 404 cases, two independent implementations |
-| End-to-end | ✅ 47 acceptance checks |
+| End-to-end | ✅ 53 acceptance checks |
 | Chaos | ✅ 10 scenarios |
 | Load | ✅ 204 tx/s measured; harness-bound, not capacity |
 | **Contract branch coverage** | ❌ 16–70% on several contracts |

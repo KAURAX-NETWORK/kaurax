@@ -45,7 +45,7 @@ about fifteen minutes: [docs/REPRODUCIBLE_TESTNET_DEMO.md](docs/REPRODUCIBLE_TES
 | **Governance** | Every privileged role held by a 2-of-3 multisig or a 1-hour timelock | `Governance.t.sol`, `TimelockSelfAdmin.t.sol` |
 | **Wallet and CLI** | Real signing, encrypted keys, faucet, explorer, indexed history | `tests/e2e-testnet.sh` |
 | **Alerting** | Rules route by severity to a real destination; a deploy without one is refused | `tests/check-alerting.sh` |
-| **Tests** | 385 contract · 186 node · 12 live end-to-end | `forge test`, `pnpm test` |
+| **Tests** | 405 contract · 214 node · 12 live end-to-end | `forge test`, `pnpm test` |
 
 ### 🧪 EXPERIMENTAL — real code, deliberately not load-bearing
 
@@ -63,7 +63,7 @@ about fifteen minutes: [docs/REPRODUCIBLE_TESTNET_DEMO.md](docs/REPRODUCIBLE_TES
 
 ### 🔍 NOT AUDITED
 
-No external firm has read this code. 385 contract tests are evidence of intent, not of
+No external firm has read this code. 405 contract tests are evidence of intent, not of
 correctness. "Audited" will not appear here until a report exists and is linked.
 
 ### 🚫 NOT MAINNET READY
@@ -76,12 +76,23 @@ The full scorecard gives STATUS, EVIDENCE and REMAINING WORK per category:
 
 ## Try it
 
+> **The public RPC and API are not currently served.** `https://kaurax.network/rpc` and
+> `/api/*` do not answer — the ten frontends are static on Vercel and are up, but the node,
+> API and indexer need a persistent host and none is running
+> ([docs/OPERATING_COSTS.md](docs/OPERATING_COSTS.md) §1). The `rpc.` and `api.` subdomains
+> the nginx config expects do not resolve either.
+>
+> **Everything below runs against a local devnet**, which is the configuration every claim
+> in this README is demonstrated against.
+
 ```bash
 pnpm install
 pnpm turbo run build --filter=@kaurax/cli
 
-export KAURAX_RPC_URL=https://kaurax.network/rpc
-export KAURAX_API_URL=https://kaurax.network
+./infra/scripts/devnet/start.sh        # L1 + L2 stand-ins + KAURAX, ~2 minutes
+
+export KAURAX_RPC_URL=http://127.0.0.1:8420
+export KAURAX_API_URL=http://127.0.0.1:4000
 export KAURAX_PASSPHRASE='choose-something'
 
 pnpm kaurax wallet create mykey
@@ -99,13 +110,18 @@ pnpm --filter @kaurax/cli exec npm link    # then: kaurax network status
 
 ### MetaMask
 
+Against the local devnet started above:
+
 ```
-Network name     KAURAX Testnet
-RPC URL          https://kaurax.network/rpc
+Network name     KAURAX Devnet
+RPC URL          http://127.0.0.1:8420
 Chain ID         8420
 Currency symbol  KAX
-Explorer         https://kaurax.network/explorer
+Explorer         http://127.0.0.1:3000
 ```
+
+There is no public RPC to point a wallet at today. When a host is running, the same
+settings apply with its address substituted.
 
 ### Run the whole thing locally
 
@@ -161,6 +177,8 @@ docs/                  65 documents, rendered at kaurax.network/docs
 | [Dispute game](docs/DISPUTE_GAME.md) | Bonds, bisection, and why it is not a fault proof |
 | [Fault proof roadmap](docs/FAULT_PROOF_ROADMAP.md) | The largest open problem |
 | [Security review](docs/SECURITY_REVIEW.md) | Three HIGH findings, all open |
+| [Protocol fees and treasury](docs/PROTOCOL_FEES.md) | Where a gas fee goes — and why most of it is burned |
+| [Operating costs](docs/OPERATING_COSTS.md) · [Sustainability](docs/SUSTAINABILITY.md) | What it costs, and what is not measured |
 | [Running a node](docs/TESTNET.md) | Every command |
 | [Roadmap](docs/ROADMAP.md) · [Funding](docs/FUNDING.md) | Where this goes next |
 

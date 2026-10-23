@@ -66,9 +66,12 @@ report.
 
 ## Endpoints
 
-- [x] Testnet URL verified — https://kaurax.network
-- [x] Explorer verified — /explorer, all routes resolve
-- [x] RPC reviewed — admin namespaces refused; **no TLS**, documented
+- [x] Frontend URL verified — https://kaurax.network, all ten zones return 200
+- [x] Explorer frontend verified — /explorer resolves (it cannot show chain data without an API)
+- [ ] **Public RPC — NOT served.** `kaurax.network/rpc` does not answer and
+      `rpc.kaurax.network` does not resolve. The method allowlist was reviewed and admin
+      namespaces are refused, but there is no endpoint to reach it on
+- [ ] **Public API — NOT served.** Same cause: no persistent host is running
 - [ ] TLS on the public RPC — blocked externally
 
 ---

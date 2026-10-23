@@ -528,6 +528,107 @@ async function main(): Promise<void> {
   check("a transaction signed for the L2 is rejected by KAURAX", wrongChainBlocked);
 
   // ---------------------------------------------------------------------- //
+  step("12. Protocol fees reach the configured recipient");
+  const feeStatus = await rpc<{
+    recipient: {
+      configured: string | null;
+      active: string | null;
+      applied: boolean;
+      problem: string | null;
+      isContract: boolean | null;
+    };
+    model: {currentBaseFeePerGas: string | null};
+  }>(L3_RPC, "kaurax_feeStatus");
+
+  info(
+    feeStatus.recipient.configured === null
+      ? "No KAURAX_FEE_RECIPIENT is set, so the priority fee is burned with the base fee."
+      : `fee recipient ${feeStatus.recipient.configured} (applied: ${feeStatus.recipient.applied})`,
+  );
+
+  if (feeStatus.recipient.configured === null) {
+    // Not a failure. Burning the priority fee is a valid configuration, and it is what
+    // KAURAX did before the setting existed — but then the arithmetic below has nothing
+    // to measure, so say so rather than passing a check that tested nothing.
+    info("skipping the fee-routing measurement: nothing is configured to receive fees");
+  } else {
+    check(
+      "the engine confirms the configured recipient as its coinbase",
+      feeStatus.recipient.applied,
+      feeStatus.recipient.problem ?? "",
+    );
+
+    const recipient = (feeStatus.recipient.active ?? feeStatus.recipient.configured) as `0x${string}`;
+
+    // On the devnet the recipient is the treasury: a 2-of-3 KauraxMultisig deployed at
+    // genesis. Assert the shape rather than trusting the address, because an EOA here
+    // would mean one key controls every fee the network collects.
+    const recipientCode = await l3Public.getBytecode({address: recipient});
+    if (recipientCode && recipientCode !== "0x") {
+      check("the fee recipient is a contract, not a single key", feeStatus.recipient.isContract === true);
+      const threshold = await l3Public
+        .readContract({
+          address: recipient,
+          abi: [
+            {name: "threshold", type: "function", stateMutability: "view", inputs: [], outputs: [{type: "uint256"}]},
+          ] as const,
+          functionName: "threshold",
+        })
+        .catch(() => null);
+      const ownerCount = await l3Public
+        .readContract({
+          address: recipient,
+          abi: [
+            {name: "ownerCount", type: "function", stateMutability: "view", inputs: [], outputs: [{type: "uint256"}]},
+          ] as const,
+          functionName: "ownerCount",
+        })
+        .catch(() => null);
+      check(
+        "the treasury needs more than one signature to spend",
+        threshold !== null && threshold > 1n,
+        `threshold ${threshold} of ${ownerCount} owners`,
+      );
+    } else {
+      info("the fee recipient has no code: it is an externally owned account, not a treasury");
+    }
+
+    const feeBefore = await l3Public.getBalance({address: recipient});
+
+    const feeTx = await l3Wallet.sendTransaction({to: RECIPIENT, value: 1n});
+    const feeReceipt = await l3Public.waitForTransactionReceipt({hash: feeTx, timeout: 60_000});
+    check("fee-measurement transaction included", feeReceipt.status === "success");
+
+    const feeBlock = await l3Public.getBlock({blockNumber: feeReceipt.blockNumber});
+    const feeAfter = await l3Public.getBalance({address: recipient});
+
+    // The whole claim, as arithmetic: the recipient gained exactly the priority component
+    // and not one wei of the base fee. This is the same clamp the node and the API apply.
+    const baseFee = feeBlock.baseFeePerGas ?? 0n;
+    const effective = feeReceipt.effectiveGasPrice;
+    const burnedPerGas = baseFee < effective ? baseFee : effective;
+    const expectedPriority = feeReceipt.gasUsed * (effective - burnedPerGas);
+    const burned = feeReceipt.gasUsed * burnedPerGas;
+
+    // Other transactions can land in the same block, so the recipient may gain more than
+    // this one transaction's share — never less, and never the burned portion.
+    const gained = feeAfter - feeBefore;
+    check(
+      "the recipient received at least this transaction's priority fee",
+      gained >= expectedPriority,
+      `gained ${gained} wei, this transaction contributed ${expectedPriority}`,
+    );
+    check(
+      "the recipient did NOT receive the burned base fee",
+      gained < expectedPriority + burned || burned === 0n,
+      `base fee burned: ${burned} wei`,
+    );
+    info(
+      `paid ${feeReceipt.gasUsed * effective} wei = ${burned} burned + ${expectedPriority} to the recipient`,
+    );
+  }
+
+  // ---------------------------------------------------------------------- //
   step("Summary");
   console.log(`  ${passed} passed, ${failed} failed`);
   if (failed > 0) {

@@ -84,6 +84,49 @@ if [ ! -f "$ROOT/.env" ]; then
 fi
 
 set -a; . "$ROOT/.env"; set +a
+
+# Backfill any devnet key that is missing or empty.
+#
+# The block above only seeds keys when it CREATES .env. An .env that already existed —
+# because it predates a variable, or someone cleared a line — keeps whatever gaps it has,
+# and the failure surfaces far from the cause: `pnpm kaurax faucet` answers "No faucet
+# account is configured on this API", which reads like a code fault rather than a missing
+# line in a file the user has never opened. That is exactly how the quick-start in the
+# README breaks on step two.
+#
+# Guarded twice over: devnet profile only, and local settlement only. These are Foundry's
+# published keys and must never be written into a file for a network that is not local.
+if [ "${KAURAX_PROFILE}" = "devnet" ] && [ "${LOCAL_DEV_SETTLEMENT}" = "true" ]; then
+  _backfill_key() {
+    local name="$1" value="$2"
+    # Present and non-empty: leave whatever the operator chose.
+    if grep -qE "^${name}=.+$" "$ROOT/.env"; then return 0; fi
+    if grep -qE "^${name}=$" "$ROOT/.env"; then
+      awk -v n="$name" -v v="$value" '
+        $0 == n "=" { print n "=" v; next }
+        { print }
+      ' "$ROOT/.env" > "$ROOT/.env.tmp" && mv "$ROOT/.env.tmp" "$ROOT/.env"
+    else
+      # Append only after guaranteeing a trailing newline. Without this, a .env whose last
+      # line has none gets the new variable concatenated onto it — which is exactly what
+      # happened the first time this ran: KAURAX_FEE_RECIPIENT's value absorbed
+      # "FAUCET_PRIVATE_KEY=0x..." and the node refused to start on an invalid address.
+      [ -s "$ROOT/.env" ] && [ "$(tail -c1 "$ROOT/.env" | wc -l)" -eq 0 ] && printf '\n' >> "$ROOT/.env"
+      printf '%s=%s\n' "$name" "$value" >> "$ROOT/.env"
+    fi
+    chmod 600 "$ROOT/.env"
+    info "backfilled $name in .env (published devnet key, local use only)"
+  }
+
+  _backfill_key SEQUENCER_PRIVATE_KEY 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+  _backfill_key DEPLOYER_PRIVATE_KEY  0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+  _backfill_key BATCHER_PRIVATE_KEY   0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+  _backfill_key PROPOSER_PRIVATE_KEY  0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+  _backfill_key FAUCET_PRIVATE_KEY    0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+
+  set -a; . "$ROOT/.env"; set +a
+fi
+
 info "profile=${KAURAX_PROFILE}  L1=${L1_CHAIN_ID}  L2=${L2_CHAIN_ID}  L3=${KAURAX_CHAIN_ID}"
 
 [ "${LOCAL_DEV_SETTLEMENT}" = "true" ] || \
@@ -266,10 +309,35 @@ info "execution engine ready at $KAURAX_ENGINE_RPC_URL (internal only, not the p
 
 step "KAURAX genesis"
 GENESIS_LOG="$RUN_DIR/genesis.log"
+# The treasury owner set. These are the published Foundry devnet accounts 1-3: their keys
+# are in Foundry's own documentation and hold nothing. A real deployment MUST override
+# this with keys three different people actually control, or the 2-of-3 is theatre.
+export KAURAX_TREASURY_OWNERS="${KAURAX_TREASURY_OWNERS:-0x70997970C51812dc3A010C7d01b50e0d17dc79C8,0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC,0x90F79bf6EB2c4f870365E785982E1f101E93b906}"
+export KAURAX_TREASURY_THRESHOLD="${KAURAX_TREASURY_THRESHOLD:-2}"
+
 pnpm -s exec tsx "$ROOT/infra/scripts/devnet/genesis.ts" 2>&1 | tee "$GENESIS_LOG"
 grep -q "KAURAX_GENESIS_BLOCK=" "$GENESIS_LOG" || die "genesis did not complete"
 GENESIS_BLOCK=$(grep "KAURAX_GENESIS_BLOCK=" "$GENESIS_LOG" | tail -1 | cut -d= -f2)
-node "$ROOT/infra/scripts/lib/write-env.mjs" KAURAX_GENESIS_BLOCK="$GENESIS_BLOCK"
+
+TREASURY=$(grep -oE 'KAURAX_TREASURY_ADDRESS=0x[0-9a-fA-F]{40}' "$GENESIS_LOG" | tail -1 | cut -d= -f2 || true)
+[ -n "$TREASURY" ] || die "genesis did not report a treasury address"
+
+node "$ROOT/infra/scripts/lib/write-env.mjs" \
+  KAURAX_GENESIS_BLOCK="$GENESIS_BLOCK" \
+  KAURAX_TREASURY_ADDRESS="$TREASURY"
+
+# Point gas fees at the treasury unless the operator has already chosen a recipient.
+# Written BEFORE kaurax-node starts: the node reads KAURAX_FEE_RECIPIENT once, at startup,
+# so a value written afterwards would not take effect until the next restart and the
+# blocks in between would credit somewhere else.
+if [ -z "${KAURAX_FEE_RECIPIENT:-}" ]; then
+  node "$ROOT/infra/scripts/lib/write-env.mjs" KAURAX_FEE_RECIPIENT="$TREASURY"
+  info "gas fees will accrue to the treasury at $TREASURY"
+else
+  info "KAURAX_FEE_RECIPIENT is already set to $KAURAX_FEE_RECIPIENT; leaving it alone"
+  info "the treasury at $TREASURY was still deployed, but will not receive fees"
+fi
+
 set -a; . "$ROOT/.env"; set +a
 info "genesis complete at L3 block $GENESIS_BLOCK; sequencing starts at $((GENESIS_BLOCK + 1))"
 

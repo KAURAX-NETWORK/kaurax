@@ -158,6 +158,28 @@ export interface KauraxConfig {
   /** Fixed KAURAX predeploy addresses. */
   predeploys: {messagePasser: Address; l3ERC20Bridge: Address};
 
+  /**
+   * Where the priority component of execution gas fees accrues.
+   *
+   * KAURAX charges gas exactly as Ethereum does, which means a transaction fee has two
+   * parts and they do NOT go to the same place:
+   *
+   *   base fee     gasUsed x baseFeePerGas       BURNED (EIP-1559). Nothing receives it,
+   *                                              and no configuration can redirect it.
+   *   priority fee gasUsed x (effective - base)  paid to the block coinbase.
+   *
+   * `recipient` sets that coinbase. Left undefined, the coinbase is the zero address and
+   * the priority fee is destroyed along with the base fee — which is what KAURAX did
+   * before this setting existed.
+   *
+   * Setting it changes nothing about what a user pays, what a transaction costs, or how a
+   * block executes. It only names the account that was already being credited.
+   *
+   * KAX is a testnet gas asset with no monetary value, so what accrues here is not
+   * revenue in any economic sense. See docs/PROTOCOL_FEES.md.
+   */
+  fees: {recipient: Address | undefined};
+
   batcher: {intervalSeconds: number; maxL3BlocksPerBatch: number};
   proposer: {intervalSeconds: number};
   bridge: {challengeWindowSeconds: number};
@@ -273,6 +295,7 @@ export function loadConfig(): KauraxConfig {
       l2Bridge: envAddress("KAURAX_L2_BRIDGE_ADDRESS"),
     },
     predeploys: {...PREDEPLOYS},
+    fees: {recipient: envAddress("KAURAX_FEE_RECIPIENT")},
     batcher: {
       intervalSeconds: envInt("BATCH_SUBMISSION_INTERVAL", 12),
       maxL3BlocksPerBatch: envInt("BATCH_MAX_L3_BLOCKS", 50),
@@ -330,6 +353,16 @@ function validate(cfg: KauraxConfig): void {
         "a public network must settle against real contracts on a real L2.",
     );
   }
+  // The zero address IS the default coinbase, so configuring it explicitly reads as
+  // "fees are routed" while doing exactly what leaving it unset does. Refuse the
+  // ambiguity rather than let an operator believe fees are being collected.
+  if (cfg.fees.recipient === "0x0000000000000000000000000000000000000000") {
+    problems.push(
+      "KAURAX_FEE_RECIPIENT is the zero address, which is the default coinbase and burns " +
+        "the priority fee. Leave it unset to burn fees deliberately, or name a real account.",
+    );
+  }
+
   if (cfg.da.mode === "altda" && !cfg.da.altdaEndpoint) {
     problems.push("DA_MODE=altda requires DA_ALTDA_ENDPOINT");
   }

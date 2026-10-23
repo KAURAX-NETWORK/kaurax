@@ -95,7 +95,7 @@ tested rather than asserted.
 
 ```bash
 pnpm --filter @kaurax/cli build
-export KAURAX_RPC_URL=https://kaurax.network/rpc
+export KAURAX_RPC_URL=http://127.0.0.1:8420   # the public RPC is not served; see README
 export KAURAX_API_URL=https://kaurax.network
 ./tests/e2e-testnet.sh
 ```

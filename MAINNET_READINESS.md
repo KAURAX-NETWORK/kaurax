@@ -64,7 +64,9 @@ the guardian rules correctly.* A fault proof would remove the second clause.
 2. Bisection reaches a block, not an instruction — no trace commitments exist.
 3. Single sequencer; no rotation.
 4. Devnet operator keys are local, though the signing seam is implemented and tested.
-5. No TLS on the public RPC (host blocks 80/443 on trial accounts).
+5. **No public RPC or API at all** — not merely untrusted transport. No persistent host
+   is running, `kaurax.network/rpc` and `/api/*` do not answer, and the `rpc.` and `api.`
+   subdomains do not resolve. Only the static frontends are deployed.
 6. No external audit.
 7. No source verification in the explorer — reported as `verified: false`, not hidden.
 
@@ -94,8 +96,8 @@ Executed for this report, not quoted from memory.
 
 | Suite | Result |
 |---|---|
-| `forge test` | **385 passed**, 0 failed, 23 suites |
-| `pnpm test` | **186 passed**, 0 failed, 29 turbo tasks |
+| `forge test` | **405 passed**, 0 failed, 23 suites |
+| `pnpm test` | **214 passed**, 0 failed, 29 turbo tasks |
 | `tests/e2e-testnet.sh` | **12 passed**, 0 failed, against the live chain |
 | Dispute game | 41 tests |
 | Adversarial dispute | 11 tests, real attacker contracts |
@@ -140,7 +142,7 @@ Each was implemented, tested, and verified against something real.
 **Medium**
 4. Sequencer decentralisation — *not fixable safely in this architecture; see below*
 5. Operator keys to the signing service in production
-6. TLS on the public RPC — *blocked externally; see below*
+6. A public RPC and API, served over TLS — *needs a persistent host; none is running*
 
 ### Why each remaining blocker remains
 
@@ -226,7 +228,7 @@ built so integration replaces one call and leaves bonds, timeouts and settlement
 - [ ] One-step verifier
 - [ ] External audit
 - [ ] Sequencer decentralisation
-- [ ] TLS on the public RPC
+- [ ] A public RPC and API, served over TLS (needs a host first)
 - [ ] Operator keys on the signing service in production
 - [ ] Alerting
 
