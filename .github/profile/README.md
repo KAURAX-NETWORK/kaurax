@@ -40,7 +40,7 @@ block there as calldata — so anyone can rebuild the chain without asking KAURA
 - **Proof-based withdrawals** — a Merkle proof against a published root; no operator approval
 - **Permissionless dispute games** — bonds, bisection to a single block, then a guardian rules
 
-611 automated tests: 385 Solidity, 214 node and services, 12 live end-to-end.
+631 automated tests: 405 Solidity, 214 node and services, 12 live end-to-end.
 
 ## What does not
 

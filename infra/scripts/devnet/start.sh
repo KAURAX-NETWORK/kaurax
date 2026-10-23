@@ -266,10 +266,35 @@ info "execution engine ready at $KAURAX_ENGINE_RPC_URL (internal only, not the p
 
 step "KAURAX genesis"
 GENESIS_LOG="$RUN_DIR/genesis.log"
+# The treasury owner set. These are the published Foundry devnet accounts 1-3: their keys
+# are in Foundry's own documentation and hold nothing. A real deployment MUST override
+# this with keys three different people actually control, or the 2-of-3 is theatre.
+export KAURAX_TREASURY_OWNERS="${KAURAX_TREASURY_OWNERS:-0x70997970C51812dc3A010C7d01b50e0d17dc79C8,0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC,0x90F79bf6EB2c4f870365E785982E1f101E93b906}"
+export KAURAX_TREASURY_THRESHOLD="${KAURAX_TREASURY_THRESHOLD:-2}"
+
 pnpm -s exec tsx "$ROOT/infra/scripts/devnet/genesis.ts" 2>&1 | tee "$GENESIS_LOG"
 grep -q "KAURAX_GENESIS_BLOCK=" "$GENESIS_LOG" || die "genesis did not complete"
 GENESIS_BLOCK=$(grep "KAURAX_GENESIS_BLOCK=" "$GENESIS_LOG" | tail -1 | cut -d= -f2)
-node "$ROOT/infra/scripts/lib/write-env.mjs" KAURAX_GENESIS_BLOCK="$GENESIS_BLOCK"
+
+TREASURY=$(grep -oE 'KAURAX_TREASURY_ADDRESS=0x[0-9a-fA-F]{40}' "$GENESIS_LOG" | tail -1 | cut -d= -f2 || true)
+[ -n "$TREASURY" ] || die "genesis did not report a treasury address"
+
+node "$ROOT/infra/scripts/lib/write-env.mjs" \
+  KAURAX_GENESIS_BLOCK="$GENESIS_BLOCK" \
+  KAURAX_TREASURY_ADDRESS="$TREASURY"
+
+# Point gas fees at the treasury unless the operator has already chosen a recipient.
+# Written BEFORE kaurax-node starts: the node reads KAURAX_FEE_RECIPIENT once, at startup,
+# so a value written afterwards would not take effect until the next restart and the
+# blocks in between would credit somewhere else.
+if [ -z "${KAURAX_FEE_RECIPIENT:-}" ]; then
+  node "$ROOT/infra/scripts/lib/write-env.mjs" KAURAX_FEE_RECIPIENT="$TREASURY"
+  info "gas fees will accrue to the treasury at $TREASURY"
+else
+  info "KAURAX_FEE_RECIPIENT is already set to $KAURAX_FEE_RECIPIENT; leaving it alone"
+  info "the treasury at $TREASURY was still deployed, but will not receive fees"
+fi
+
 set -a; . "$ROOT/.env"; set +a
 info "genesis complete at L3 block $GENESIS_BLOCK; sequencing starts at $((GENESIS_BLOCK + 1))"
 

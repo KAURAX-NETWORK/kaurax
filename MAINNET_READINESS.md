@@ -94,7 +94,7 @@ Executed for this report, not quoted from memory.
 
 | Suite | Result |
 |---|---|
-| `forge test` | **385 passed**, 0 failed, 23 suites |
+| `forge test` | **405 passed**, 0 failed, 23 suites |
 | `pnpm test` | **214 passed**, 0 failed, 29 turbo tasks |
 | `tests/e2e-testnet.sh` | **12 passed**, 0 failed, against the live chain |
 | Dispute game | 41 tests |

@@ -44,8 +44,10 @@ New in this round: [UPGRADE_AUDIT.md](UPGRADE_AUDIT.md),
 | L2 settlement cost metered per driver (batch / output / forced) | `kaurax_feeStatus.l2SettlementCost`; `l2-spend.test.ts`, 11 tests |
 | The `l2DataFee` config no longer claims `enabled: true` for something nothing reads | `blockchain/chain/config/*.json` |
 | Three critical dependency advisories cleared | `pnpm audit --audit-level critical` passes |
+| Fees accrue to a 2-of-3 treasury, not an EOA | deployed at genesis; `Treasury.t.sol`, 20 tests |
+| A disbursement policy exists, with tests behind each claim | [TREASURY_POLICY.md](TREASURY_POLICY.md) |
 
-Both pre-existing suites stayed green throughout: **385 Solidity**, **214 node**. No test
+Both pre-existing suites stayed green throughout: **405 Solidity**, **214 node**. No test
 was skipped, weakened or deleted.
 
 ---
@@ -70,14 +72,25 @@ Charging users for data availability is what OP Stack chains do, and with §3.1 
 there is now a measured cost to base it on. It changes what every transaction costs, so it
 needs its own design, tests and a migration note — not a config flip.
 
-### 3.3 Move the fee recipient behind a multisig — *before any value accrues*
+### 3.3 Make the treasury owner set real — *blocked on people, not code*
 
-The recipient is a single EOA. `KauraxMultisig` exists and is tested (27 tests) but is
-deployed on the **L2** for settlement governance. Deploying one on KAURAX and pointing the
-coinbase at it is straightforward; doing it *after* value accrues is not.
+The treasury is deployed and tested, and the devnet points fees at it. What is missing is
+not code:
 
-Then: a written disbursement policy, tests that enforce it, and an audit. In that order.
-See [PROTOCOL_FEES.md](PROTOCOL_FEES.md) §7.
+1. **Three owners who are three different people**, holding keys on three different
+   machines. `start.sh` defaults to Foundry's published devnet accounts, whose private keys
+   are in Foundry's own documentation. That is the right default for a devnet and must be
+   overridden through `KAURAX_TREASURY_OWNERS` anywhere else. No contract can verify this
+   property.
+2. **An audit of `KauraxMultisig`.** 300 lines, 47 tests across `Governance.t.sol` and
+   `Treasury.t.sol`, read by nobody outside this project. The cheapest audit this project
+   will ever commission.
+3. **A decision on timelocking large disbursements.** `KauraxTimelock` already exists and
+   guards settlement roles on the L2; the treasury does not use it, so a 2-of-3 can move
+   funds immediately.
+
+Until 1 and 2 are done, nothing of value should accrue — see
+[TREASURY_POLICY.md](TREASURY_POLICY.md) §7.
 
 ### 3.4 Retention policies for the three things that grow
 

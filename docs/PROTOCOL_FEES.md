@@ -105,6 +105,8 @@ is the default, so setting it would read as "fees are routed" while burning them
 | `GET /api/fees` | all-time split: paid by users / burned / received, with indexed-block coverage |
 | `GET /api/fees/daily?days=30` | the same split per day |
 
+Who may move what accrues is [TREASURY_POLICY.md](TREASURY_POLICY.md).
+
 Both API figures are `SUM` over indexed receipts joined to block headers
 ([`services/api/src/routes/fees.ts`](../services/api/src/routes/fees.ts)). A transaction
 contributes to exactly one row and there is no second source to reconcile, so double
@@ -170,11 +172,12 @@ Neither is aggregated into `/api/fees`, which is gas only.
 1. **Engine-coupled.** Fee routing works because the engine is anvil. A different client
    sets its coinbase at genesis or through its own flag. This is one more consequence of
    the engine choice documented in [FAULT_PROOFS.md](FAULT_PROOFS.md) §1.
-2. **The recipient is a single externally-owned account.** It is not a multisig. KAURAX
-   has an audited-shape 2-of-3 (`KauraxMultisig`, 27 tests) deployed on the **L2** for
-   settlement governance; pointing the L3 coinbase at an L3 multisig would work, and is not
-   done today because nothing of value accrues to it. Do not treat the current setup as a
-   treasury suitable for funds that matter.
+2. **The recipient is a 2-of-3 multisig, which has not been audited.** The devnet deploys
+   a `KauraxMultisig` treasury at genesis and points the coinbase at it
+   ([TREASURY_POLICY.md](TREASURY_POLICY.md)). Its default owner set is Foundry's published
+   devnet accounts, whose keys are public — correct for a devnet, catastrophic anywhere
+   else. `kaurax_feeStatus` reports whether the recipient has code so an EOA cannot be
+   mistaken for a treasury.
 3. **No automated disbursement.** There is no payout logic, no splitter, no schedule.
    Spending is a manual transaction by whoever holds the key.
 4. **No price.** KAX has none. Every figure is in wei of a valueless asset, and nothing
@@ -187,10 +190,14 @@ Neither is aggregated into `/api/fees`, which is gas only.
 
 In the order the work depends on itself:
 
-1. Point the coinbase at a multisig deployed on KAURAX rather than an EOA.
-2. Write a disbursement policy — who may spend, for what, with what approval — and the
-   test suite that enforces it.
-3. Get the multisig and the disbursement path audited.
-4. Only then let anything of value accrue.
+1. ~~Point the coinbase at a multisig deployed on KAURAX rather than an EOA.~~ **Done** —
+   deployed at genesis, 2-of-3 by default.
+2. ~~Write a disbursement policy and the test suite that enforces it.~~ **Done** —
+   [TREASURY_POLICY.md](TREASURY_POLICY.md), 20 tests in `Treasury.t.sol`.
+3. Replace the devnet owner set with keys three different people control. **Not done.**
+4. Get `KauraxMultisig` audited. **Not done.**
+5. Decide whether large disbursements need a timelock. **Not done.**
+6. Only then let anything of value accrue.
 
-Steps 1–3 are not done. Step 4 must not happen before them.
+Steps 3–5 are not done, and step 6 must not happen before them. The controls now exist and
+are tested; what is missing is independent review and an owner set that is not public.

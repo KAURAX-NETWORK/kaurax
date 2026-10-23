@@ -530,7 +530,13 @@ async function main(): Promise<void> {
   // ---------------------------------------------------------------------- //
   step("12. Protocol fees reach the configured recipient");
   const feeStatus = await rpc<{
-    recipient: {configured: string | null; active: string | null; applied: boolean; problem: string | null};
+    recipient: {
+      configured: string | null;
+      active: string | null;
+      applied: boolean;
+      problem: string | null;
+      isContract: boolean | null;
+    };
     model: {currentBaseFeePerGas: string | null};
   }>(L3_RPC, "kaurax_feeStatus");
 
@@ -553,6 +559,40 @@ async function main(): Promise<void> {
     );
 
     const recipient = (feeStatus.recipient.active ?? feeStatus.recipient.configured) as `0x${string}`;
+
+    // On the devnet the recipient is the treasury: a 2-of-3 KauraxMultisig deployed at
+    // genesis. Assert the shape rather than trusting the address, because an EOA here
+    // would mean one key controls every fee the network collects.
+    const recipientCode = await l3Public.getBytecode({address: recipient});
+    if (recipientCode && recipientCode !== "0x") {
+      check("the fee recipient is a contract, not a single key", feeStatus.recipient.isContract === true);
+      const threshold = await l3Public
+        .readContract({
+          address: recipient,
+          abi: [
+            {name: "threshold", type: "function", stateMutability: "view", inputs: [], outputs: [{type: "uint256"}]},
+          ] as const,
+          functionName: "threshold",
+        })
+        .catch(() => null);
+      const ownerCount = await l3Public
+        .readContract({
+          address: recipient,
+          abi: [
+            {name: "ownerCount", type: "function", stateMutability: "view", inputs: [], outputs: [{type: "uint256"}]},
+          ] as const,
+          functionName: "ownerCount",
+        })
+        .catch(() => null);
+      check(
+        "the treasury needs more than one signature to spend",
+        threshold !== null && threshold > 1n,
+        `threshold ${threshold} of ${ownerCount} owners`,
+      );
+    } else {
+      info("the fee recipient has no code: it is an externally owned account, not a treasury");
+    }
+
     const feeBefore = await l3Public.getBalance({address: recipient});
 
     const feeTx = await l3Wallet.sendTransaction({to: RECIPIENT, value: 1n});

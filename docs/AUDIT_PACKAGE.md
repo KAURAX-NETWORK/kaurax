@@ -147,7 +147,7 @@ pnpm --filter @kaurax/tests test:integration
 
 Solidity 0.8.28, `evm_version = cancun`, optimizer on at 999,999 runs, `via_ir = false`.
 
-**385 Solidity tests, 214 node, 51 acceptance, 44 adversarial, 10 chaos.** Coverage per
+**405 Solidity tests, 214 node, 53 acceptance, 44 adversarial, 10 chaos.** Coverage per
 contract: [TESTING_REPORT.md](TESTING_REPORT.md).
 
 ---

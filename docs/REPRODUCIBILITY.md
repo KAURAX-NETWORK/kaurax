@@ -96,7 +96,7 @@ signed transaction without asking KAURAX for anything.
 ```bash
 cd blockchain/contracts
 forge build
-forge test                    # 385 passed, 23 suites
+forge test                    # 405 passed, 23 suites
 forge fmt --check
 ```
 

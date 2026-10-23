@@ -60,6 +60,23 @@ function encodeAddressArg(address: string): string {
   return address.toLowerCase().replace(/^0x/, "").padStart(64, "0");
 }
 
+function encodeUint(value: bigint | number): string {
+  return BigInt(value).toString(16).padStart(64, "0");
+}
+
+/**
+ * ABI-encode `(address[] owners, uint256 threshold)` for the treasury constructor.
+ *
+ * Hand-rolled because genesis deliberately has no dependency on viem or ethers: it runs
+ * before anything is built, against a bare engine. A dynamic array is a head offset
+ * followed by a length and the elements.
+ */
+function encodeMultisigArgs(owners: string[], threshold: number): string {
+  const head = encodeUint(64) + encodeUint(threshold);
+  const tail = encodeUint(owners.length) + owners.map(encodeAddressArg).join("");
+  return head + tail;
+}
+
 /**
  * Poll for a receipt, mining if the engine is not doing it for us.
  *
@@ -162,7 +179,76 @@ async function main(): Promise<void> {
     `[genesis] KauraxL3ERC20Bridge installed at ${L3_ERC20_BRIDGE} (counterpart ${l2BridgeAddress})`,
   );
 
-  // ---- 4. Verify --------------------------------------------------------------
+  // ---- 4. Treasury ------------------------------------------------------------
+  // A KauraxMultisig that receives the priority component of KAURAX gas fees.
+  //
+  // Deployed here, before kaurax-node starts, for one reason: the node reads
+  // KAURAX_FEE_RECIPIENT once at startup and sets the engine coinbase from it. A treasury
+  // deployed later would leave every block until then crediting somewhere else, and the
+  // accounting in docs/PROTOCOL_FEES.md would start partway through the run.
+  //
+  // NOT relocated to a predeploy address, unlike the bridge above. The multisig keeps its
+  // owner set and threshold in STORAGE, not in immutables, so copying runtime code to a
+  // fixed address would install a treasury with no owners and no threshold — one that can
+  // receive fees and can never spend them. It keeps its natural deployment address and
+  // start.sh writes that address into .env.
+  //
+  // Fees arrive as a coinbase credit, which is a balance change rather than a call, so
+  // the treasury's receive() never runs and no Deposit event is emitted for fee income.
+  // That is verified in blockchain/contracts/test/Treasury.t.sol and stated in
+  // docs/TREASURY_POLICY.md, because an indexer watching Deposit would report zero.
+  const owners = (process.env.KAURAX_TREASURY_OWNERS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter((o) => o.length > 0);
+  const threshold = Number(process.env.KAURAX_TREASURY_THRESHOLD ?? "2");
+
+  if (owners.length === 0) {
+    throw new Error(
+      "KAURAX_TREASURY_OWNERS is not set. The treasury holds protocol fees and must not " +
+        "be deployed without an owner set; a multisig with no owners can never spend.",
+    );
+  }
+  if (!Number.isInteger(threshold) || threshold < 1 || threshold > owners.length) {
+    throw new Error(
+      `KAURAX_TREASURY_THRESHOLD must be between 1 and ${owners.length} (got "${threshold}")`,
+    );
+  }
+  for (const owner of owners) {
+    if (!/^0x[0-9a-fA-F]{40}$/.test(owner)) {
+      throw new Error(`KAURAX_TREASURY_OWNERS contains "${owner}", which is not an address`);
+    }
+  }
+
+  const multisig = artifact("KauraxMultisig.sol/KauraxMultisig.json");
+  const treasuryTx = await rpc<Hex>(engineUrl, "eth_sendTransaction", [
+    {
+      from: deployer,
+      data: multisig.bytecode.object + encodeMultisigArgs(owners, threshold),
+      gas: "0x7a1200",
+    },
+  ]);
+  const treasuryReceipt = await waitForReceipt(engineUrl, treasuryTx);
+  if (!treasuryReceipt) throw new Error(`treasury deployment ${treasuryTx} was never mined`);
+  if (treasuryReceipt.status !== "0x1") throw new Error("treasury deployment reverted during genesis");
+
+  const treasury = treasuryReceipt.contractAddress;
+
+  // Confirm the constructor actually took: a treasury whose threshold read back as 0
+  // would accept fees and never release them.
+  const onChainThreshold = BigInt(
+    await rpc<Hex>(engineUrl, "eth_call", [{to: treasury, data: "0x42cde4e8"}, "latest"]), // threshold()
+  );
+  if (onChainThreshold !== BigInt(threshold)) {
+    throw new Error(
+      `treasury deployed at ${treasury} reports threshold ${onChainThreshold}, expected ${threshold}`,
+    );
+  }
+  console.log(
+    `[genesis] treasury (KauraxMultisig ${threshold}-of-${owners.length}) deployed at ${treasury}`,
+  );
+
+  // ---- 5. Verify --------------------------------------------------------------
   const treeRoot = await rpc<Hex>(engineUrl, "eth_call", [
     {to: MESSAGE_PASSER, data: "0x365fc5a8"}, // withdrawalTreeRoot()
     "latest",
@@ -175,6 +261,7 @@ async function main(): Promise<void> {
 
   // Emitted for start.sh to capture.
   console.log(`KAURAX_GENESIS_BLOCK=${height}`);
+  console.log(`KAURAX_TREASURY_ADDRESS=${treasury}`);
 }
 
 main().catch((err: Error) => {

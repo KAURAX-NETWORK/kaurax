@@ -47,7 +47,7 @@ test asserts it.
 
 **Test totals at this commit, from the suites themselves:**
 
-- `forge test` → **385 passed, 0 failed, 23 suites**
+- `forge test` → **405 passed, 0 failed, 23 suites**
 - `pnpm test` → **214 passed, 0 failed, 29 turbo tasks**
 
 ### What "verified" does not extend to
@@ -68,7 +68,7 @@ Ordered by how much of the system's safety rests on them.
    dishonest proposer commits an arbitrary root and, once final, withdraws against it.
 2. **The guardian is the final arbiter.** A 2-of-3 multisig decides disputes. Capture it and
    it rules for a liar, or against an honest challenger, within the window.
-3. **No external audit.** 385 contract tests are evidence of intent, not of correctness. No
+3. **No external audit.** 405 contract tests are evidence of intent, not of correctness. No
    independent party has read the settlement, bridge or dispute contracts.
 4. **Bridge escrow accounting can be inflated by a re-entrant token** — new in this audit,
    reproduced, see §3 H-4.

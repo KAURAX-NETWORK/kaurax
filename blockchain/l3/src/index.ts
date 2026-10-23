@@ -369,6 +369,15 @@ export class KauraxNode {
     const block = await this.engine.getBlock("latest").catch(() => null);
     const l2Spend = this.settlement.l2Spend();
 
+    // Whether the recipient is a contract is the difference between a treasury with a
+    // threshold and a single key someone holds. A reader should not have to look that up.
+    const recipientCode =
+      recipient === null
+        ? null
+        : await this.engine
+            .request<Hex>("eth_getCode", [recipient, "latest"])
+            .catch(() => null);
+
     return serialize({
       recipient: {
         configured: this.feeRecipient.configured,
@@ -376,6 +385,14 @@ export class KauraxNode {
         applied: this.feeRecipient.applied,
         problem: this.feeRecipient.problem,
         balanceWei,
+        isContract: recipientCode === null ? null : recipientCode !== "0x",
+        note:
+          recipientCode === null || recipientCode === "0x"
+            ? "This recipient has no code: it is an externally owned account controlled by " +
+              "a single key. See docs/TREASURY_POLICY.md."
+            : "This recipient is a contract. If it is the KAURAX treasury it is a " +
+              "KauraxMultisig and spending needs a threshold of owners; verify that rather " +
+              "than assuming it. See docs/TREASURY_POLICY.md.",
       },
       model: {
         // Stated here rather than only in documentation, because a caller reading this

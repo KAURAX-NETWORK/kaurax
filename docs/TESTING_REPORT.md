@@ -9,11 +9,11 @@ figures are from `forge coverage` and `vitest --coverage` on this commit.
 
 | Suite | Command | Result |
 |---|---|---|
-| Solidity | `forge test` | **385 passed**, 0 failed, 23 suites |
+| Solidity | `forge test` | **405 passed**, 0 failed, 23 suites |
 | Node and services | `pnpm test` | **214 passed**, 29 turbo tasks |
 | Fault-proof properties | `pnpm --filter @kaurax/tests test` | **10 passed** (400+ programs each) |
 | Security + adversarial | `pnpm --filter @kaurax/tests test:integration` | **44 passed** (26 + 18) |
-| Acceptance, end to end | `./tests/acceptance.sh` | **51 checks passed** |
+| Acceptance, end to end | `./tests/acceptance.sh` | **53 checks passed** |
 | Live testnet | `./tests/e2e-testnet.sh` | 12 passed |
 | Types | `pnpm typecheck` | 26/26 |
 | Build | `pnpm build` | 20/20 |

@@ -12,7 +12,7 @@
 | Dispute game, adversarial | `blockchain/contracts/test/DisputeGameAdversarial.t.sol` | 11 | No |
 | Fault dispute game | `blockchain/contracts/test/KVSFaultDisputeGame.t.sol` | 35 | No |
 | Verifier differential | `blockchain/contracts/test/KVSVerifier.t.sol` | 6 (404 cases) | No |
-| Acceptance, end to end | `tests/acceptance.ts` | 51 checks | Yes |
+| Acceptance, end to end | `tests/acceptance.ts` | 53 checks | Yes |
 
 The Solidity suites stay where they are. Moving them under `tests/` to match a directory
 layout would have split the contract tests across two build systems for no gain; what the
